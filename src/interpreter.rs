@@ -230,7 +230,10 @@ impl Interpreter {
 			},
 			Stmt::Print { value, .. } => {
 				self.print(value);
-			}
+			},
+			Stmt::If { condition, true_body, false_body, .. } => {
+				self.if_stmt(condition, true_body, false_body);
+			},
 			_ => unimplemented!(),
 		}
 	}

@@ -2,6 +2,7 @@ mod ast;
 mod core;
 mod interpreter;
 mod environment;
+mod stmts;
 
 pub use ast::*;
 pub use core::*;

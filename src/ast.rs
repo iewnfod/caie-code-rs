@@ -77,7 +77,8 @@ pub enum Stmt {
 	},
 	If {
 		condition: Expr,
-		body: Box<Stmt>,
+		true_body: Box<Stmt>,
+		false_body: Option<Box<Stmt>>,
 		span: Option<Span>,
 	}
 }

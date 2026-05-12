@@ -23,7 +23,26 @@ fn test_assignment() {
 					span: None,
 				},
 				span: None,
-			}
+			},
+			Stmt::Print {
+				value: vec![
+					Expr::Literal {
+						value: RuntimeValue::Str("X".to_string()), span: None,
+					},
+					Expr::Literal {
+						value: RuntimeValue::Str("=".to_string()), span: None,
+					},
+					Expr::Get {
+						name: ObjectAccess::Direct {
+							name: "X".to_string(),
+							span: None,
+						},
+						index: None,
+						span: None,
+					}
+				],
+				span: None,
+			},
 		],
 		span: None,
 	};
@@ -32,9 +51,8 @@ fn test_assignment() {
 	let mut interpreter = Interpreter::new();
 	interpreter.execute(mock_ast);
 
-	println!("Environment after execution: {:?}", interpreter.environment);
+	interpreter.print_environment();
 	let value = interpreter.environment.get("X".to_string()).unwrap().0.borrow().get_var_value().unwrap();
-	println!("Value of X: {:?}", value);
 
 	// 验证结果
 	assert_eq!(value, RuntimeValue::Int(15));

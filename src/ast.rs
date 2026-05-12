@@ -12,10 +12,6 @@ pub enum Expr {
 		value: RuntimeValue,
 		span: Option<Span>,
 	},
-	Variable {
-		name: String,
-		span: Option<Span>,
-	},
 	Binary {
 		left: Box<Expr>,
 		op: Op,
@@ -23,8 +19,8 @@ pub enum Expr {
 		span: Option<Span>,
 	},
 	Get {
-		object: Box<Expr>,
-		name: String,
+		name: ObjectAccess,
+		index: Option<Box<Expr>>, // 支持数组元素访问，如 arr[0]
 		span: Option<Span>,
 	},
 	Call {
@@ -75,6 +71,15 @@ pub enum Stmt {
 		var_type: TypeDefinition,
 		span: Option<Span>,
 	},
+	Print {
+		value: Vec<Expr>,
+		span: Option<Span>,
+	},
+	If {
+		condition: Expr,
+		body: Box<Stmt>,
+		span: Option<Span>,
+	}
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

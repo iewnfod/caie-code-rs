@@ -109,15 +109,36 @@ impl Object {
 		}
 	}
 
-	pub fn construct(&mut self, args: Vec<RuntimeValue>) -> RuntimeValue {
+	pub fn get_value_with_depths(&self, field_names: ObjectAccess) -> Option<RuntimeValue> {
+		let name = field_names.clone();
+		match name {
+			ObjectAccess::Direct { name, .. } => self.get_value(&name),
+			ObjectAccess::Deep { name, next, .. } => {
+				if let Some(RuntimeValue::Obj(obj_ptr)) = self.fields.get(&name) {
+					obj_ptr.0.borrow().get_value_with_depths(*next)
+				} else if
+					self.environment.is_some() &&
+					let Some(obj_ptr) = self.environment.as_ref().unwrap().borrow().get(name.to_string())
+				{
+					obj_ptr.0.borrow().get_value_with_depths(*next)
+				} else if let Some(proto) = &self.prototype {
+					proto.0.borrow().get_value_with_depths(field_names)
+				} else {
+					None // 路径无效
+				}
+			}
+		}
+	}
+
+	pub fn construct(&mut self, args: Vec<RuntimeValue>) -> Option<RuntimeValue> {
 		self.call_method("__construct__", args)
 	}
 
-	pub fn call_func(&mut self, args: Vec<RuntimeValue>) -> RuntimeValue {
+	pub fn call_func(&mut self, args: Vec<RuntimeValue>) -> Option<RuntimeValue> {
 		self.call_method("__call__", args)
 	}
 
-	pub fn call_method(&mut self, method_name: &str, args: Vec<RuntimeValue>) -> RuntimeValue {
+	pub fn call_method(&mut self, method_name: &str, args: Vec<RuntimeValue>) -> Option<RuntimeValue> {
 		if let Some(method) = self.methods.get(method_name) {
 			match method {
 				RuntimeValue::Obj(func_ptr) => {

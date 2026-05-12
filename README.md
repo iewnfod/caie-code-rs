@@ -5,7 +5,7 @@
 <h3 align="center">the CAIE Pseudocode Interpreter 2</h3>
 </p>
 <p align="center">
-<a href="./README_zh.md">中文</a> | <a href="./README.md">English</a>
+<a href="./README_zh.md">简体中文</a> | <a href="./README.md">English</a>
 </p>
 
 > The current version is in the early development stage, and there are a lot of missing functions and unknown errors. If you want to use it stably, please move to [CAIE_Code](https://github.com/iewnfod/CAIE_Code).

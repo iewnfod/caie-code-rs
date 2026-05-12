@@ -5,7 +5,7 @@
 <h3 align="center">CAIE 伪代码解释器 2</h3>
 </p>
 <p align="center">
-<a href="./README_zh.md">中文</a> | <a href="./README.md">English</a>
+<a href="./README_zh.md">简体中文</a> | <a href="./README.md">English</a>
 </p>
 
 > 当前版本正在初期开发阶段，存在大量功能缺失以及未知错误，若想要稳定使用，请移步 [CAIE_Code](https://github.com/iewnfod/CAIE_Code)
@@ -22,8 +22,8 @@
 - [ ] `RECORD` 与 `POINTER`
 - [ ] `CLASS` OOP
 
-### Improvements in v2
-- 一个全新的作用域与对象统一架构
+### 2代中的提升
+- 使用全新的作用域与统一对象架构
 - 完全使用 Rust 实现，更好的性能，更安全的内存
 - 一个新的语法解析器来修复之前的各种不兼容的问题
 - 更加合理且完善的错误检查与输出

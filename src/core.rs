@@ -29,6 +29,10 @@ impl RuntimeValue {
 			RuntimeValue::Null => TypeDefinition::Primitive("NULL".into()),
 		}
 	}
+
+	pub fn is_int(&self) -> bool {
+		matches!(self, RuntimeValue::Int(_))
+	}
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -59,39 +63,64 @@ impl Object {
 		}
 	}
 
-	pub fn get_var_value(&self) -> Option<RuntimeValue> {
-		self.get_value("__value__")
+	pub fn get_var_value(&mut self, index: Option<RuntimeValue>) -> Option<RuntimeValue> {
+		self.get_value("__value__", index)
 	}
 
-	pub fn set_var_value(&mut self, value: RuntimeValue) {
-		if value.get_type() == self.definition {
-			self.set_value("__value__".to_string(), value);
+	pub fn set_var_value(&mut self, value: RuntimeValue, index: Option<RuntimeValue>) {
+		if value.get_type() == self.definition || index.is_some() {
+			self.set_value("__value__".to_string(), value, index);
 		}
 	}
 
-	pub fn set_value(&mut self, field_name: String, value: RuntimeValue) {
-		self.fields.insert(field_name, value);
+	pub fn set_value(&mut self, field_name: String, value: RuntimeValue, index: Option<RuntimeValue>) {
+		if let Some(index) = index {
+			match self.definition.clone() {
+				TypeDefinition::Array { element_type, start, end } => {
+					if *element_type == value.get_type() {
+						if let RuntimeValue::Int(i) = index {
+							if i >= start as i64 && i <= end as i64 {
+								self.fields.insert(format!("__{}__", i), value);
+							}
+						}
+					}
+				},
+				TypeDefinition::Record { fields } => {
+					if let Some((_, field_type)) = fields.iter().find(|(name, _)| name == &field_name) {
+						if *field_type == value.get_type() {
+							self.fields.insert(field_name, value);
+						}
+					}
+				},
+				TypeDefinition::Class { .. } => {
+					self.call_method("__set_index__", vec![index, value]);
+				},
+				_ => unimplemented!(),
+			}
+		} else {
+			self.fields.insert(field_name, value);
+		}
 	}
 
-	pub fn set_value_with_depths(&mut self, field_names: ObjectAccess, value: RuntimeValue) {
+	pub fn set_value_with_depths(&mut self, field_names: ObjectAccess, value: RuntimeValue, index: Option<RuntimeValue>) {
 		let name = field_names.clone();
 		match name {
 			ObjectAccess::Direct { .. } => {
-				self.set_var_value(value);
+				self.set_var_value(value, index);
 			},
 			ObjectAccess::Deep { name, next, .. } => {
 				if let Some(RuntimeValue::Obj(obj_ptr)) = self.fields.get(&name) {
 					// 尝试在 fields 中找到对象
-					obj_ptr.0.borrow_mut().set_value_with_depths(*next, value);
+					obj_ptr.0.borrow_mut().set_value_with_depths(*next, value, index);
 				} else if
 					self.environment.is_some() &&
-					let Some(obj_ptr) = self.environment.as_ref().unwrap().borrow().get(name.to_string())
+					let Some(obj_ptr) = self.environment.as_ref().unwrap().borrow_mut().get(name.to_string())
 				{
 					// 尝试在作用域中找到对象
-					obj_ptr.0.borrow_mut().set_value_with_depths(*next, value);
+					obj_ptr.0.borrow_mut().set_value_with_depths(*next, value, index);
 				} else if let Some(proto) = &self.prototype {
 					// 尝试在原型链中找到对象
-					proto.0.borrow_mut().set_value_with_depths(field_names, value);
+					proto.0.borrow_mut().set_value_with_depths(field_names, value, index);
 				} else {
 					return; // 路径无效
 				}
@@ -99,30 +128,54 @@ impl Object {
 		}
 	}
 
-	pub fn get_value(&self, field_name: &str) -> Option<RuntimeValue> {
-		if let Some(value) = self.fields.get(field_name) {
-			Some(value.clone())
-		} else if let Some(proto) = &self.prototype {
-			proto.0.borrow().get_value(field_name)
-		} else {
+	pub fn get_value(&mut self, field_name: &str, index: Option<RuntimeValue>) -> Option<RuntimeValue> {
+		if let Some(index) = index {
+			match self.definition.clone() {
+				TypeDefinition::Array { start, end, .. } => {
+					if let RuntimeValue::Int(i) = index {
+						if i >= start as i64 && i <= end as i64 {
+							return self.fields.get(&format!("__{}__", i)).cloned();
+						}
+					}
+				},
+				TypeDefinition::Record { fields } => {
+					if let Some((_, field_type)) = fields.iter().find(|(name, _)| name == field_name) {
+						if *field_type == RuntimeValue::Null.get_type() || *field_type == self.fields.get(field_name)?.get_type() {
+							return self.fields.get(field_name).cloned();
+						}
+					}
+				},
+				TypeDefinition::Class { .. } => {
+					return self.call_method("__get_index__", vec![index]);
+				},
+				_ => unimplemented!(),
+			}
 			None
+		} else {
+			if let Some(value) = self.fields.get(field_name) {
+				Some(value.clone())
+			} else if let Some(proto) = &self.prototype {
+				proto.0.borrow_mut().get_value(field_name, index)
+			} else {
+				None
+			}
 		}
 	}
 
-	pub fn get_value_with_depths(&self, field_names: ObjectAccess) -> Option<RuntimeValue> {
+	pub fn get_value_with_depths(&mut self, field_names: ObjectAccess, index: Option<RuntimeValue>) -> Option<RuntimeValue> {
 		let name = field_names.clone();
 		match name {
-			ObjectAccess::Direct { name, .. } => self.get_value(&name),
+			ObjectAccess::Direct { name, .. } => self.get_value(&name, index),
 			ObjectAccess::Deep { name, next, .. } => {
 				if let Some(RuntimeValue::Obj(obj_ptr)) = self.fields.get(&name) {
-					obj_ptr.0.borrow().get_value_with_depths(*next)
+					obj_ptr.0.borrow_mut().get_value_with_depths(*next, index)
 				} else if
 					self.environment.is_some() &&
-					let Some(obj_ptr) = self.environment.as_ref().unwrap().borrow().get(name.to_string())
+					let Some(obj_ptr) = self.environment.as_ref().unwrap().borrow_mut().get(name.to_string())
 				{
-					obj_ptr.0.borrow().get_value_with_depths(*next)
+					obj_ptr.0.borrow_mut().get_value_with_depths(*next, index)
 				} else if let Some(proto) = &self.prototype {
-					proto.0.borrow().get_value_with_depths(field_names)
+					proto.0.borrow_mut().get_value_with_depths(field_names, index)
 				} else {
 					None // 路径无效
 				}

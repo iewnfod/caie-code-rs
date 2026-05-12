@@ -52,7 +52,7 @@ fn test_assignment() {
 	interpreter.execute(mock_ast);
 
 	interpreter.print_environment();
-	let value = interpreter.environment.get("X".to_string()).unwrap().0.borrow().get_var_value().unwrap();
+	let value = interpreter.environment.get("X".to_string()).unwrap().0.borrow_mut().get_var_value(None).unwrap();
 
 	// 验证结果
 	assert_eq!(value, RuntimeValue::Int(15));

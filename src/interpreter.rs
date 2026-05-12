@@ -1,4 +1,4 @@
-use crate::{Environment, Expr, ObjectAccess, Op, RuntimeValue, Stmt};
+use crate::{Environment, Expr, ObjectAccess, Op, RuntimeValue, Stmt, TypeDefinition};
 
 #[derive(Debug, Clone, Default)]
 pub struct Interpreter {
@@ -31,7 +31,7 @@ impl Interpreter {
 		}
 	}
 
-	fn binary_op(&self, left: RuntimeValue, op: Op, right: RuntimeValue) -> Option<RuntimeValue> {
+	pub fn binary_op(&self, left: RuntimeValue, op: Op, right: RuntimeValue) -> Option<RuntimeValue> {
 		let right_clone = right.clone();
 		match (left, right) {
 			(RuntimeValue::Int(l), RuntimeValue::Int(r)) => {
@@ -120,70 +120,91 @@ impl Interpreter {
 		}
 	}
 
-	fn get(&mut self, name: ObjectAccess, index: Option<Box<Expr>>) -> Option<RuntimeValue> {
+	pub fn get(&mut self, name: ObjectAccess, index: Option<Box<Expr>>) -> Option<RuntimeValue> {
+		let mut i = None;
+		let mut result = None;
 		if let Some(index) = index {
-			let index = self.evaluate(*index);
-			// get value with index
-			None
-		} else {
+			i = self.evaluate(*index);
+		}
+		match name {
+			ObjectAccess::Direct { name, .. } => {
+				if let Some(var) = self.environment.get(name) {
+					if i.is_none() {
+						result = Some(RuntimeValue::Obj(var.clone()));
+					} else {
+						result = var.0.borrow_mut().get_var_value(i);
+					}
+				}
+			},
+			ObjectAccess::Deep { name, next, .. } => {
+				if let Some(var) = self.environment.get(name) {
+					result = var.0.borrow_mut().get_value_with_depths(*next, i);
+				}
+			}
+		}
+		result
+	}
+
+	pub fn assign(&mut self, name: ObjectAccess, value: Expr, index: Option<Expr>) {
+		if let Some(val) = self.evaluate(value) {
+			let mut i = None;
+			if let Some(index) = index {
+				i = self.evaluate(index);
+			}
 			match name {
 				ObjectAccess::Direct { name, .. } => {
 					if let Some(var) = self.environment.get(name) {
-						var.0.borrow().get_var_value()
-					} else {
-						None
+						var.0.borrow_mut().set_var_value(val, i);
 					}
 				},
 				ObjectAccess::Deep { name, next, .. } => {
 					if let Some(var) = self.environment.get(name) {
-						var.0.borrow().get_value_with_depths(*next)
-					} else {
-						None
+						var.0.borrow_mut().set_value_with_depths(*next, val, i);
 					}
 				}
 			}
 		}
 	}
 
-	fn assign(&mut self, name: ObjectAccess, value: Expr, index: Option<Expr>) {
-		if let Some(val) = self.evaluate(value) {
-			if let Some(index) = index {
-				let index = self.evaluate(index);
-				// set value with index
-			} else {
-				match name {
-					ObjectAccess::Direct { name, .. } => {
-						if let Some(var) = self.environment.get(name) {
-							var.0.borrow_mut().set_var_value(val);
+	pub fn get_print_string(&mut self, val: RuntimeValue) -> String {
+		let t = val.get_type();
+		let final_s = format!("{:?}", val);
+		match val {
+			RuntimeValue::Str(s) => s,
+			RuntimeValue::Int(n) => n.to_string(),
+			RuntimeValue::Bool(b) => {
+				if b {
+					"TRUE".to_string()
+				} else {
+					"FALSE".to_string()
+				}
+			},
+			RuntimeValue::Float(f) => f.to_string(),
+			RuntimeValue::Null => "NULL".to_string(),
+			RuntimeValue::Obj(obj_ptr) => {
+				match t {
+					TypeDefinition::Array { start, end, .. } => {
+						let mut elements = vec![];
+						for i in start..=end {
+							if let Some(elem) = obj_ptr.0.borrow_mut().get_value("", Some(RuntimeValue::Int((i as usize).try_into().unwrap()))) {
+								elements.push(format!("{}", self.get_print_string(elem)));
+							} else {
+								elements.push("NULL".to_string());
+							}
 						}
+						format!("[{}]", elements.join(", "))
 					},
-					ObjectAccess::Deep { name, next, .. } => {
-						if let Some(var) = self.environment.get(name) {
-							var.0.borrow_mut().set_value_with_depths(*next, val);
-						}
-					}
+					_ => final_s,
 				}
-			}
+			},
 		}
 	}
 
-	fn print(&mut self, value: Vec<Expr>) {
+	pub fn print(&mut self, value: Vec<Expr>) {
 		for (index, expr) in value.iter().enumerate() {
 			if let Some(val) = self.evaluate(expr.clone()) {
-				match val {
-					RuntimeValue::Str(s) => print!("{}", s),
-					RuntimeValue::Int(n) => print!("{}", n),
-					RuntimeValue::Bool(b) => {
-						if b {
-							print!("TRUE");
-						} else {
-							print!("FALSE");
-						}
-					},
-					RuntimeValue::Float(f) => print!("{}", f),
-					RuntimeValue::Null => print!("NULL"),
-					_ => print!("{:?}", val),
-				}
+				let s = self.get_print_string(val);
+				print!("{}", s);
 				if index != value.len() - 1 {
 					print!(" ");
 				}

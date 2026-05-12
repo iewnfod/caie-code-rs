@@ -23,22 +23,35 @@ impl Environment {
 		match var_type {
 			TypeDefinition::Primitive(t) => {
 				match t.as_str() {
-					"INT" => obj.set_var_value(RuntimeValue::Int(0)),
-					"REAL" => obj.set_var_value(RuntimeValue::Float(0.0)),
-					"STRING" => obj.set_var_value(RuntimeValue::Str(String::new())),
-					"BOOLEAN" => obj.set_var_value(RuntimeValue::Bool(false)),
-					_ => obj.set_var_value(RuntimeValue::Null),
+					"INT" => obj.set_var_value(RuntimeValue::Int(0), None),
+					"REAL" => obj.set_var_value(RuntimeValue::Float(0.0), None),
+					"STRING" => obj.set_var_value(RuntimeValue::Str(String::new()), None),
+					"BOOLEAN" => obj.set_var_value(RuntimeValue::Bool(false), None),
+					_ => obj.set_var_value(RuntimeValue::Null, None),
 				}
 			},
 			TypeDefinition::Record { fields } => {
 				for (field, def) in fields {
 					let f = field.clone();
-					obj.set_value(field, RuntimeValue::Obj(self.define_var(f, def)));
+					obj.set_value(field, RuntimeValue::Obj(self.define_var(f, def)), None);
 				}
 			},
-			TypeDefinition::Class { .. } => {
-				obj.set_var_value(RuntimeValue::Null);
-			}
+			TypeDefinition::Array { element_type, start, end } => {
+				for i in start..=end {
+					let index = format!("__{}__", i);
+					let t = *element_type.clone();
+					let var = self.define_var(index.clone(), t.clone());
+					match t {
+						TypeDefinition::Primitive(_) => {
+							obj.set_value(index, var.0.borrow_mut().get_var_value(None).unwrap(), None);
+						},
+						_ => {
+							obj.set_value(index, RuntimeValue::Obj(var), None);
+						}
+					}
+				}
+			},
+			_ => {},
 		}
 		ObjPtr(Rc::new(RefCell::new(obj)))
 	}
@@ -48,11 +61,11 @@ impl Environment {
 		self.objects.insert(name, obj);
 	}
 
-	pub fn get(&self, name: String) -> Option<ObjPtr> {
+	pub fn get(&mut self, name: String) -> Option<ObjPtr> {
 		if let Some(obj) = self.objects.get(&name) {
 			Some(obj.clone())
 		} else if let Some(enclosing) = &self.enclosing {
-			enclosing.borrow().get(name)
+			enclosing.borrow_mut().get(name)
 		} else {
 			None
 		}

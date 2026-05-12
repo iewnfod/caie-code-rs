@@ -103,6 +103,7 @@ pub enum Op {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeDefinition {
     Primitive(String), // "INTEGER", "REAL" ...
+	Array { element_type: Box<TypeDefinition>, start: usize, end: usize }, // Array of fixed size
     Record { fields: Vec<(String, TypeDefinition)> }, // TYPE ... ENDTYPE
     Class { statements: Vec<Stmt> }, // CLASS ... ENDCLASS
 }

@@ -129,7 +129,7 @@ impl Interpreter {
 		match name {
 			ObjectAccess::Direct { name, .. } => {
 				if let Some(var) = self.environment.get(name) {
-					if i.is_none() {
+					if i.is_none() && !matches!(var.0.borrow().definition, TypeDefinition::Primitive(_)) {
 						result = Some(RuntimeValue::Obj(var.clone()));
 					} else {
 						result = var.0.borrow_mut().get_var_value(i);
@@ -239,8 +239,10 @@ impl Interpreter {
 	}
 
 	pub fn print_environment(&self) {
+		println!("");
 		println!("===== Environment State =====");
 		println!("{:?}", self.environment);
 		println!("=============================");
+		println!("");
 	}
 }

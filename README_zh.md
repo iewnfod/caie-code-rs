@@ -14,7 +14,7 @@
 - [x] 基础类型 `INT`, `REAL`, `STRING`, `BOOLEAN`
 - [x] 数组（多维数组理论上支持，但是目前还没有索引的方式）
 - [x] `IF` 表达式
-- [ ] `FOR`, `WHILE`, `UNTIL` 循环
+- [x] `FOR`, `WHILE`, `UNTIL` 循环
 - [ ] `FUNCTION` 与 `PROCEDURE`
 - [ ] `INPUT` 与 `OUTPUT`
 - [ ] `CALL` 与 `RETURN`
@@ -45,6 +45,7 @@
 
 ## 使用的技术
 * [Rust](https://rust-lang.org/)
+* [Colored](https://github.com/colored-rs/colored)
 
 ## 开源协议
 [MPL-2.0](./LICENSE)

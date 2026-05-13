@@ -1,7 +1,7 @@
 use caie_code_rs::{Expr, Interpreter, Op, RuntimeValue, Stmt};
 
 #[test]
-fn test_assignment() {
+fn if_stmt() {
 	// 手动创建 AST
 	let mock_ast = Stmt::Block {
 		stmts: vec![
@@ -45,7 +45,7 @@ fn test_assignment() {
 	};
 
 	// 执行内核逻辑
-	let mut interpreter = Interpreter::new();
+	let mut interpreter = Interpreter::debug();
 	interpreter.execute(mock_ast);
 
 	interpreter.print_environment();

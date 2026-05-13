@@ -1,18 +1,45 @@
 use crate::{Environment, Expr, ObjectAccess, Op, RuntimeValue, Stmt, TypeDefinition};
+use colored::Colorize;
 
 #[derive(Debug, Clone, Default)]
 pub struct Interpreter {
 	pub environment: Environment,  // 当前作用域
+	pub debug: bool, // 是否开启调试模式
 }
 
 impl Interpreter {
 	pub fn new() -> Self {
 		Interpreter {
 			environment: Environment::new(None),
+			debug: false,
+		}
+	}
+
+	pub fn debug() -> Self {
+		Interpreter {
+			environment: Environment::new(None),
+			debug: true,
+		}
+	}
+
+	pub fn debug_print<T: ToString>(&self, message: T) {
+		if self.debug {
+			println!("{}", message.to_string().purple());
+		}
+	}
+
+	pub fn runtime2bool(&self, val: RuntimeValue) -> bool {
+		match val {
+			RuntimeValue::Bool(b) => b,
+			RuntimeValue::Int(i) => i != 0,
+			RuntimeValue::Float(f) => f != 0.0,
+			RuntimeValue::Null => false,
+			_ => false, // 对于对象和字符串等非空值，默认视为 false
 		}
 	}
 
 	pub fn evaluate(&mut self, expr: Expr) -> Option<RuntimeValue> {
+		self.debug_print(format!("Evaluating expression: {:?}", expr));
 		match expr {
 			Expr::Literal { value, .. } => Some(value),
 			Expr::Binary { left, op, right, .. } => {
@@ -32,6 +59,7 @@ impl Interpreter {
 	}
 
 	pub fn binary_op(&self, left: RuntimeValue, op: Op, right: RuntimeValue) -> Option<RuntimeValue> {
+		self.debug_print(format!("Evaluating binary operation: {:?} {:?} {:?}", left, op, right));
 		let right_clone = right.clone();
 		match (left, right) {
 			(RuntimeValue::Int(l), RuntimeValue::Int(r)) => {
@@ -121,6 +149,7 @@ impl Interpreter {
 	}
 
 	pub fn get(&mut self, name: ObjectAccess, index: Option<Box<Expr>>) -> Option<RuntimeValue> {
+		self.debug_print(format!("Getting value for: {:?} with index {:?}", name, index));
 		let mut i = None;
 		let mut result = None;
 		if let Some(index) = index {
@@ -151,18 +180,7 @@ impl Interpreter {
 			if let Some(index) = index {
 				i = self.evaluate(index);
 			}
-			match name {
-				ObjectAccess::Direct { name, .. } => {
-					if let Some(var) = self.environment.get(name) {
-						var.0.borrow_mut().set_var_value(val, i);
-					}
-				},
-				ObjectAccess::Deep { name, next, .. } => {
-					if let Some(var) = self.environment.get(name) {
-						var.0.borrow_mut().set_value_with_depths(*next, val, i);
-					}
-				}
-			}
+			self.environment.assign(name, val, i);
 		}
 	}
 
@@ -218,31 +236,50 @@ impl Interpreter {
 	pub fn execute(&mut self, stmt: Stmt) {
 		match stmt {
 			Stmt::Assign { name, value, index, .. } => {
+				self.debug_print(format!("Assign {:?} to {:?} with index {:?}", value, name, index));
 				self.assign(name, value, index);
 			},
 			Stmt::VarDecl { name, var_type, .. } => {
+				self.debug_print(format!("Declaring variable: {}", name));
 				self.environment.define(name.clone(), var_type);
 			},
 			Stmt::Block { stmts, .. } => {
+				self.debug_print("Entering block");
+				self.environment = self.environment.new_child();
 				for stmt in stmts {
 					self.execute(stmt);
 				}
+				self.debug_print("Exiting block");
+				self.print_environment();
+				self.environment = self.environment.ancestor(0).unwrap().take();
 			},
 			Stmt::Print { value, .. } => {
+				self.debug_print(format!("Printing values: {:?}", value));
 				self.print(value);
 			},
 			Stmt::If { condition, true_body, false_body, .. } => {
+				self.debug_print(format!("Executing if statement with condition: {:?}", condition));
 				self.if_stmt(condition, true_body, false_body);
+			},
+			Stmt::For { var_name, start, end, body, .. } => {
+				self.debug_print(format!("Executing for loop with variable: {}, start: {:?}, end: {:?}", var_name, start, end));
+				self.for_stmt(var_name, start, end, body);
+			},
+			Stmt::While { condition, body, .. } => {
+				self.debug_print(format!("Executing while loop with condition: {:?}", condition));
+				self.while_stmt(condition, body);
+			},
+			Stmt::Repeat { body, condition, .. } => {
+				self.debug_print(format!("Executing repeat loop with condition: {:?}", condition));
+				self.repeat_stmt(body, condition);
 			},
 			_ => unimplemented!(),
 		}
 	}
 
 	pub fn print_environment(&self) {
-		println!("");
-		println!("===== Environment State =====");
-		println!("{:?}", self.environment);
-		println!("=============================");
-		println!("");
+		self.debug_print("===== Environment State =====");
+		self.debug_print(format!("{:?}", self.environment));
+		self.debug_print("=============================");
 	}
 }

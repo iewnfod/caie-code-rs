@@ -14,7 +14,7 @@
 - [x] Basic Literal Types `INT`, `REAL`, `STRING`, `BOOLEAN`.
 - [x] Array (Multi-Dimension Array is logically supported, but still without index method)
 - [x] `IF` Statement.
-- [ ] `FOR`, `WHILE`, `UNTIL` loop.
+- [x] `FOR`, `WHILE`, `UNTIL` loop.
 - [ ] `FUNCTION` and `PROCEDURE`.
 - [ ] `INPUT` and `OUTPUT`.
 - [ ] `CALL` and `RETURN`.
@@ -45,6 +45,7 @@ While we recognize AI as a powerful productivity tool, we prioritize code qualit
 
 ## Technologies Used
 * [Rust](https://rust-lang.org/)
+* [Colored](https://github.com/colored-rs/colored)
 
 ## License
 [MPL-2.0](./LICENSE)

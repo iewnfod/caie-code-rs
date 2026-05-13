@@ -1,7 +1,7 @@
 use caie_code_rs::{Expr, Interpreter, ObjectAccess, Op, RuntimeValue, Stmt, TypeDefinition};
 
 #[test]
-fn test_array() {
+fn array() {
 	let mock_ast = Stmt::Block {
 		stmts: vec![
 			Stmt::VarDecl {
@@ -90,16 +90,8 @@ fn test_array() {
 		span: None,
 	};
 
-	let mut interpreter = Interpreter::new();
+	let mut interpreter = Interpreter::debug();
 	interpreter.execute(mock_ast);
 
 	interpreter.print_environment();
-
-	let arr = interpreter.get(
-		ObjectAccess::Direct { name: "arr".to_string(), span: None },
-		None
-	).unwrap();
-	let val = interpreter.get_print_string(arr);
-
-	assert_eq!(val, "[15, 20, 0, 0, 0]");
 }

@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::{ObjPtr, Object, RuntimeValue, TypeDefinition};
+use crate::{ObjPtr, Object, ObjectAccess, RuntimeValue, TypeDefinition};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Environment {
@@ -71,14 +71,27 @@ impl Environment {
 		}
 	}
 
-	pub fn assign(&mut self, name: String, value: ObjPtr) -> bool {
-		if self.objects.contains_key(&name) {
-			self.objects.insert(name, value);
-			true
-		} else if let Some(enclosing) = &self.enclosing {
-			enclosing.borrow_mut().assign(name, value)
-		} else {
-			false
+	pub fn assign(&mut self, name: ObjectAccess, value: RuntimeValue, index: Option<RuntimeValue>) {
+		let name_clone = name.clone();
+		match name {
+			ObjectAccess::Direct { name, .. } => {
+				if let Some(var) = self.objects.get(&name) {
+					var.0.borrow_mut().set_var_value(value, index);
+				} else if let Some(enclosing) = &self.enclosing {
+					enclosing.borrow_mut().assign(name_clone, value, index);
+				} else {
+					panic!("Undefined variable: {}", name);
+				}
+			},
+			ObjectAccess::Deep { name, next, .. } => {
+				if let Some(var) = self.objects.get(&name) {
+					var.0.borrow_mut().set_value_with_depths(*next, value, index);
+				} else if let Some(enclosing) = &self.enclosing {
+					enclosing.borrow_mut().assign(name_clone, value, index);
+				} else {
+					panic!("Undefined variable: {}", name);
+				}
+			}
 		}
 	}
 

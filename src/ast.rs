@@ -80,6 +80,23 @@ pub enum Stmt {
 		true_body: Box<Stmt>,
 		false_body: Option<Box<Stmt>>,
 		span: Option<Span>,
+	},
+	For {
+		var_name: String,
+		start: Expr,
+		end: Expr,
+		body: Box<Stmt>,
+		span: Option<Span>,
+	},
+	Repeat {
+		body: Box<Stmt>,
+		condition: Expr,
+		span: Option<Span>,
+	},
+	While {
+		condition: Expr,
+		body: Box<Stmt>,
+		span: Option<Span>,
 	}
 }
 

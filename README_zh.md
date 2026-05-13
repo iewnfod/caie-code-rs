@@ -10,6 +10,32 @@
 
 > 当前版本正在初期开发阶段，存在大量功能缺失以及未知错误，若想要稳定使用，请移步 [CAIE_Code](https://github.com/iewnfod/CAIE_Code)
 
+## 安装
+1. 克隆当前仓库
+```shell
+git clone https://github.com/iewnfod/caie-code-rs.git
+```
+2. 进入文件夹
+```shell
+cd caie-code-rs
+```
+3. 编译并安装二进制文件
+```shell
+cargo install --path .
+```
+
+## 使用
+```shell
+cpc [file_path] [options]
+```
+### 选项
+| 简称  | 选项 | 描述 |
+| ----- | ---- | ----------- |
+| `-h`  | `--help` | 显示帮助信息 |
+| `-v`  | `--version` | 显示版本信息 |
+| `-d`  | `--debug`   | 开启调试模式 |
+
+
 ## 功能 & 规划
 - [x] 基础类型 `INT`, `REAL`, `STRING`, `BOOLEAN`
 - [x] 数组（多维数组理论上支持，但是目前还没有索引的方式）

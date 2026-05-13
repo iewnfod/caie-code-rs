@@ -5,3 +5,7 @@ edition = "2024"
 
 [dependencies]
 colored = "3.1.1"
+
+[[bin]]
+name = "cpc"
+path = "src/main.rs"

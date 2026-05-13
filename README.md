@@ -10,6 +10,34 @@
 
 > The current version is in the early development stage, and there are a lot of missing functions and unknown errors. If you want to use it stably, please move to [CAIE_Code](https://github.com/iewnfod/CAIE_Code).
 
+## Install
+1. Clone this repository
+```shell
+git clone https://github.com/iewnfod/caie-code-rs.git
+```
+2. Enter the folder
+```shell
+cd caie-code-rs
+```
+3. Compile and install binary
+```shell
+cargo install --path .
+```
+
+## Usage
+```shell
+cpc [file_path] [options]
+```
+### Options
+| Mnemonic | Option | Description |
+| ----- | ---- | ----------- |
+| `-h`  | `--help` | Show help message |
+| `-v`  | `--version` | Show version information |
+| `-d`  | `--debug`   | Enable debug mode |
+
+## License
+MIT
+
 ## Features & Roadmap
 - [x] Basic Literal Types `INT`, `REAL`, `STRING`, `BOOLEAN`.
 - [x] Array (Multi-Dimension Array is logically supported, but still without index method)

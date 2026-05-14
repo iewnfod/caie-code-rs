@@ -1,3 +1,5 @@
+use colored::Colorize;
+
 use crate::Interpreter;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -44,14 +46,14 @@ fn head() {
 fn help() {
 	head();
 	println!();
-	println!("Usage: cpc [file_path] [options]");
+	println!("Usage: {} [file_path] [options]", "cpc".bold());
 	println!();
 	println!("Options:");
 	ARG_OPTIONS.iter().for_each(|opt| {
 		if let Some(desc) = opt.description {
-			println!("  {:<20} {}", format!("{}, {}", opt.short, opt.long), desc);
+			println!("  {:<35} {}", format!("{}, {}", opt.short.bold(), opt.long.bold()), desc);
 		} else {
-			println!("  {:<20}", format!("{}, {}", opt.short, opt.long));
+			println!("  {:<35}", format!("{}, {}", opt.short.bold(), opt.long.bold()));
 		}
 	});
 }

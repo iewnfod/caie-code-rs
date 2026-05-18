@@ -44,6 +44,7 @@ MIT
 - [x] `IF` Statement.
 - [x] `FOR`, `WHILE`, `UNTIL` loop.
 - [ ] `FUNCTION` and `PROCEDURE`.
+	- [x] `PROCEDURE` A function without return
 - [ ] `INPUT` and `OUTPUT`.
 - [ ] `CALL` and `RETURN`.
 - [ ] `MATCH` and `CASE`.

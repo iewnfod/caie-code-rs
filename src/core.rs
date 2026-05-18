@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::{Environment, ObjectAccess, TypeDefinition};
+use crate::{Environment, ObjectAccess, Stmt, TypeDefinition};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObjPtr(pub Rc<RefCell<Object>>);
@@ -41,8 +41,6 @@ pub struct Object {
 	pub name: String,
 	// 类定义
 	pub definition: TypeDefinition,
-	// 存储函数名，即对应的函数的 Object，如 __get__、__set__ 等特殊方法，以及用户定义的方法
-    pub methods: HashMap<String, RuntimeValue>,
     // 存储实例数据
     pub fields: HashMap<String, RuntimeValue>,
     // 用于继承或类型回溯
@@ -56,7 +54,6 @@ impl Object {
 		Object {
 			name,
 			definition,
-			methods: HashMap::new(),
 			fields: HashMap::new(),
 			prototype: None,
 			environment: None,
@@ -65,6 +62,10 @@ impl Object {
 
 	pub fn get_var_value(&mut self, index: Option<RuntimeValue>) -> Option<RuntimeValue> {
 		self.get_value("__value__", index)
+	}
+
+	pub fn get_method(&mut self) -> Option<RuntimeValue> {
+		self.get_value("__method__", None)
 	}
 
 	pub fn set_var_value(&mut self, value: RuntimeValue, index: Option<RuntimeValue>) {
@@ -92,9 +93,9 @@ impl Object {
 						}
 					}
 				},
-				TypeDefinition::Class { .. } => {
-					self.call_method("__set_index__", vec![index, value]);
-				},
+				// TypeDefinition::Class { .. } => {
+				// 	self.call_method("__set_index__", vec![index, value]);
+				// },
 				_ => unimplemented!(),
 			}
 		} else {
@@ -145,9 +146,9 @@ impl Object {
 						}
 					}
 				},
-				TypeDefinition::Class { .. } => {
-					return self.call_method("__get_index__", vec![index]);
-				},
+				// TypeDefinition::Class { .. } => {
+				// 	return self.call_method("__get_index__", vec![index]);
+				// },
 				_ => unimplemented!(),
 			}
 			None
@@ -157,7 +158,7 @@ impl Object {
 			} else if let Some(proto) = &self.prototype {
 				proto.0.borrow_mut().get_value(field_name, index)
 			} else {
-				None
+				Some(RuntimeValue::Obj(ObjPtr(Rc::new(RefCell::new(self.clone())))))
 			}
 		}
 	}
@@ -183,27 +184,23 @@ impl Object {
 		}
 	}
 
-	pub fn construct(&mut self, args: Vec<RuntimeValue>) -> Option<RuntimeValue> {
-		self.call_method("__construct__", args)
-	}
+	// pub fn construct(&mut self, args: Vec<RuntimeValue>) -> Option<RuntimeValue> {
+	// 	self.call_method("__construct__", args)
+	// }
 
-	pub fn call_func(&mut self, args: Vec<RuntimeValue>) -> Option<RuntimeValue> {
-		self.call_method("__call__", args)
-	}
-
-	pub fn call_method(&mut self, method_name: &str, args: Vec<RuntimeValue>) -> Option<RuntimeValue> {
-		if let Some(method) = self.methods.get(method_name) {
-			match method {
-				RuntimeValue::Obj(func_ptr) => {
-					let mut func_obj = func_ptr.0.borrow_mut();
-					func_obj.call_func(args)
-				},
-				_ => unimplemented!(),
-			}
-		} else if let Some(proto) = &self.prototype {
-			proto.0.borrow_mut().call_method(method_name, args)
+	pub fn get_func_ptr(&mut self) -> Option<ObjPtr> {
+		if let TypeDefinition::Func { .. } = self.definition {
+			Some(ObjPtr(Rc::new(RefCell::new(self.clone()))))
 		} else {
-			unimplemented!()
+			if let Some(method) = self.get_method() {
+				if let RuntimeValue::Obj(func_ptr) = method {
+					Some(func_ptr)
+				} else {
+					None
+				}
+			} else {
+				None
+			}
 		}
 	}
 }

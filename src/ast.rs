@@ -23,8 +23,8 @@ pub enum Expr {
 		index: Option<Box<Expr>>, // 支持数组元素访问，如 arr[0]
 		span: Option<Span>,
 	},
-	Call {
-		callee: Box<Expr>,
+	Call {  // 调用函数
+		name: ObjectAccess,
 		args: Vec<Expr>,
 		span: Option<Span>,
 	}
@@ -97,7 +97,11 @@ pub enum Stmt {
 		condition: Expr,
 		body: Box<Stmt>,
 		span: Option<Span>,
-	}
+	},
+	Expr {
+		value: Expr,
+		span: Option<Span>,
+	},
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -124,4 +128,5 @@ pub enum TypeDefinition {
 	Array { element_type: Box<TypeDefinition>, start: usize, end: usize }, // Array of fixed size
     Record { fields: Vec<(String, TypeDefinition)> }, // TYPE ... ENDTYPE
     Class { statements: Vec<Stmt> }, // CLASS ... ENDCLASS
+	Func { params: Vec<(String, TypeDefinition)>, body: Box<Stmt> }, // FUNCTION ... ENDFUNCTION
 }

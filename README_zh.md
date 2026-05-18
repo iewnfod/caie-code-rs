@@ -42,6 +42,7 @@ cpc [file_path] [options]
 - [x] `IF` 表达式
 - [x] `FOR`, `WHILE`, `UNTIL` 循环
 - [ ] `FUNCTION` 与 `PROCEDURE`
+	- [x] `PROCEDURE` 没有返回值的函数
 - [ ] `INPUT` 与 `OUTPUT`
 - [ ] `CALL` 与 `RETURN`
 - [ ] `MATCH` 与 `CASE`

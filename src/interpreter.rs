@@ -1,4 +1,4 @@
-use crate::{Environment, Expr, ObjectAccess, Op, RuntimeValue, Stmt, TypeDefinition};
+use crate::{Environment, Expr, ObjPtr, ObjectAccess, Op, RuntimeValue, Stmt, TypeDefinition};
 use colored::Colorize;
 
 #[derive(Debug, Clone, Default)]
@@ -53,6 +53,9 @@ impl Interpreter {
 			},
 			Expr::Get { name, index, .. } => {
 				self.get(name, index)
+			},
+			Expr::Call { name, args, .. } => {
+				self.call_func(name, args)
 			}
 			_ => unimplemented!(),
 		}
@@ -125,25 +128,25 @@ impl Interpreter {
 					_ => unimplemented!(),
 				}
 			},
-			(RuntimeValue::Obj(l), RuntimeValue::Obj(_r)) => {
-				let l = l.0.borrow();
-				match op {
-					Op::Eq => l.clone().call_method("__eq__", vec![right_clone]),
-					Op::Neq => l.clone().call_method("__neq__", vec![right_clone]),
-					Op::Gt => l.clone().call_method("__gt__", vec![right_clone]),
-					Op::Lt => l.clone().call_method("__lt__", vec![right_clone]),
-					Op::Gte => l.clone().call_method("__gte__", vec![right_clone]),
-					Op::Lte => l.clone().call_method("__lte__", vec![right_clone]),
-					Op::And => l.clone().call_method("__and__", vec![right_clone]),
-					Op::Or => l.clone().call_method("__or__", vec![right_clone]),
-					Op::Add => l.clone().call_method("__add__", vec![right_clone]),
-					Op::Sub => l.clone().call_method("__sub__", vec![right_clone]),
-					Op::Mul => l.clone().call_method("__mul__", vec![right_clone]),
-					Op::Div => l.clone().call_method("__div__", vec![right_clone]),
-					Op::Mod => l.clone().call_method("__mod__", vec![right_clone]),
-					_ => unimplemented!(),
-				}
-			},
+			// (RuntimeValue::Obj(l), RuntimeValue::Obj(_r)) => {
+			// 	let l = l.0.borrow();
+			// 	match op {
+			// 		Op::Eq => l.clone().call_method("__eq__", vec![right_clone]),
+			// 		Op::Neq => l.clone().call_method("__neq__", vec![right_clone]),
+			// 		Op::Gt => l.clone().call_method("__gt__", vec![right_clone]),
+			// 		Op::Lt => l.clone().call_method("__lt__", vec![right_clone]),
+			// 		Op::Gte => l.clone().call_method("__gte__", vec![right_clone]),
+			// 		Op::Lte => l.clone().call_method("__lte__", vec![right_clone]),
+			// 		Op::And => l.clone().call_method("__and__", vec![right_clone]),
+			// 		Op::Or => l.clone().call_method("__or__", vec![right_clone]),
+			// 		Op::Add => l.clone().call_method("__add__", vec![right_clone]),
+			// 		Op::Sub => l.clone().call_method("__sub__", vec![right_clone]),
+			// 		Op::Mul => l.clone().call_method("__mul__", vec![right_clone]),
+			// 		Op::Div => l.clone().call_method("__div__", vec![right_clone]),
+			// 		Op::Mod => l.clone().call_method("__mod__", vec![right_clone]),
+			// 		_ => unimplemented!(),
+			// 	}
+			// },
 			_ => unimplemented!(),
 		}
 	}
@@ -168,6 +171,28 @@ impl Interpreter {
 			ObjectAccess::Deep { name, next, .. } => {
 				if let Some(var) = self.environment.get(name) {
 					result = var.0.borrow_mut().get_value_with_depths(*next, i);
+				}
+			}
+		}
+		result
+	}
+
+	pub fn get_method(&mut self, name: ObjectAccess) -> Option<ObjPtr> {
+		self.debug_print(format!("Getting method for: {:?}", name));
+		let mut result = None;
+		match name {
+			ObjectAccess::Direct { name, .. } => {
+				if let Some(var) = self.environment.get(name) {
+					result = var.0.borrow_mut().get_func_ptr();
+				}
+			},
+			ObjectAccess::Deep { name, next, .. } => {
+				if let Some(var) = self.environment.get(name) {
+					if let Some(obj) = var.0.borrow_mut().get_value_with_depths(*next, None) {
+						if let RuntimeValue::Obj(obj_ptr) = obj {
+							result = obj_ptr.0.borrow_mut().get_func_ptr();
+						}
+					}
 				}
 			}
 		}
@@ -233,6 +258,22 @@ impl Interpreter {
 		println!("");
 	}
 
+	pub fn new_scope(&mut self) {
+		self.debug_print("New Scope");
+		self.environment = self.environment.new_child();
+	}
+
+	pub fn exit_scope(&mut self) {
+		self.debug_print("Exit Scope");
+		self.print_environment();
+		if let Some(parent) = self.environment.ancestor(0) {
+			self.environment = parent.take();
+			self.debug_print("Returned to parent scope");
+		} else {
+			self.debug_print("No parent scope found, staying in current scope");
+		}
+	}
+
 	pub fn execute(&mut self, stmt: Stmt) {
 		match stmt {
 			Stmt::Assign { name, value, index, .. } => {
@@ -244,14 +285,11 @@ impl Interpreter {
 				self.environment.define(name.clone(), var_type);
 			},
 			Stmt::Block { stmts, .. } => {
-				self.debug_print("Entering block");
-				self.environment = self.environment.new_child();
+				self.new_scope();
 				for stmt in stmts {
 					self.execute(stmt);
 				}
-				self.debug_print("Exiting block");
-				self.print_environment();
-				self.environment = self.environment.ancestor(0).unwrap().take();
+				self.exit_scope();
 			},
 			Stmt::Print { value, .. } => {
 				self.debug_print(format!("Printing values: {:?}", value));
@@ -273,6 +311,14 @@ impl Interpreter {
 				self.debug_print(format!("Executing repeat loop with condition: {:?}", condition));
 				self.repeat_stmt(body, condition);
 			},
+			Stmt::FuncDecl { name, params, body, .. } => {
+				self.debug_print(format!("Declaring function: {}", name));
+				self.environment.define_func(name, params, body);
+			},
+			Stmt::Expr { value, .. } => {
+				self.debug_print(format!("Evaluating expression statement: {:?}", value));
+				self.evaluate(value);
+			}
 			_ => unimplemented!(),
 		}
 	}

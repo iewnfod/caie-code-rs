@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::{ObjPtr, Object, ObjectAccess, RuntimeValue, TypeDefinition};
+use crate::{ObjPtr, Object, ObjectAccess, RuntimeValue, Stmt, TypeDefinition};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Environment {
@@ -109,6 +109,17 @@ impl Environment {
 
 	pub fn new_child(&self) -> Environment {
 		Environment::new(Some(Rc::new(RefCell::new(self.clone()))))
+	}
+
+	pub fn define_func(&mut self, name: String, params: Vec<(String, TypeDefinition)>, body: Box<Stmt>) {
+		let func_obj = Object {
+			name: name.clone(),
+			definition: TypeDefinition::Func { params: params.clone(), body: body.clone() },
+			fields: HashMap::new(),
+			prototype: None,
+			environment: Some(Rc::new(RefCell::new(self.clone()))),
+		};
+		self.objects.insert(name, ObjPtr(Rc::new(RefCell::new(func_obj))));
 	}
 }
 

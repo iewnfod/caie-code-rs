@@ -38,7 +38,7 @@ cpc [file_path] [options]
 
 ## 功能 & 规划
 - [x] 基础类型 `INT`, `REAL`, `STRING`, `BOOLEAN`
-- [ ] 数组
+- [ ] 数组 与 多维数组
 - [x] `IF` 表达式
 - [x] `FOR`, `WHILE`, `UNTIL` 循环
 - [ ] `FUNCTION` 与 `PROCEDURE`

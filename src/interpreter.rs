@@ -1,4 +1,4 @@
-use crate::{Expr, Op, RuntimeValue, Scope, ScopeRef, Stmt, Type};
+use crate::{Expr, Op, RuntimeValue, Scope, ScopeRef, Stmt, Type, default_type_value};
 use colored::Colorize;
 
 #[derive(Debug, Clone)]
@@ -53,6 +53,16 @@ impl Interpreter {
 			},
 			Expr::Get { name, .. } => {
 				self.get(name)
+			},
+			Expr::Index { target, index, .. } => {
+				let container = self.evaluate(*target);
+				let idx = self.evaluate(*index);
+				match (container, idx) {
+					(Some(RuntimeValue::Array(arr)), Some(RuntimeValue::Int(i))) => {
+						arr.borrow().get(i as usize)
+					},
+					_ => None,
+				}
 			},
 			_ => unimplemented!(),
 		}
@@ -164,14 +174,7 @@ impl Interpreter {
 
 	pub fn define(&mut self, name: String, var_type: Type) {
 		self.debug_print(format!("Defining variable: {:?} with type {:?}", name, var_type));
-		let value = match var_type {
-			Type::Int => RuntimeValue::Int(0),
-			Type::Float => RuntimeValue::Float(0.0),
-			Type::Str => RuntimeValue::Str(String::new()),
-			Type::Bool => RuntimeValue::Bool(false),
-			Type::Null => RuntimeValue::Null,
-			_ => unimplemented!(),
-		};
+		let value = default_type_value(&var_type);
 		crate::scope::define(&self.current_scope, name, value);
 	}
 
@@ -184,6 +187,22 @@ impl Interpreter {
 			}
 		}
 		println!();
+	}
+
+	pub fn index_set(&mut self, target: Expr, index: Expr, value: Expr) {
+		let value_val = self.evaluate(value);
+		let index_val = self.evaluate(index);
+		let target_val = self.evaluate(target);
+		let i = match index_val {
+			Some(RuntimeValue::Int(i)) => i as usize,
+			_ => return,
+		};
+		match (target_val, value_val) {
+			(Some(RuntimeValue::Array(arr)), Some(value)) => {
+				arr.borrow_mut().set(i, value);
+			}
+			_ => return,
+		}
 	}
 
 	pub fn execute(&mut self, stmt: Stmt) {
@@ -227,6 +246,10 @@ impl Interpreter {
 			Stmt::Print { value, .. } => {
 				self.debug_print(format!("Executing print statement with value: {:?}", value));
 				self.print(value);
+			},
+			Stmt::IndexAssign { target, index, value, .. } => {
+				self.debug_print(format!("Index assign to {:?} with value: {:?} and index: {:?}", &target, &value, &index));
+				self.index_set(target, index, value);
 			},
 			_ => unimplemented!(),
 		}

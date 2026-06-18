@@ -25,3 +25,37 @@ pub enum Type {
     Record(String),
     Func(Vec<Type>, Box<Type>),
 }
+
+impl RuntimeValue {
+    pub fn to_string(&self) -> String {
+        match self {
+            RuntimeValue::Int(i) => i.to_string(),
+            RuntimeValue::Float(f) => f.to_string(),
+            RuntimeValue::Str(s) => s.clone(),
+            RuntimeValue::Bool(b) => {
+                if *b {
+                    "TRUE".to_string()
+                } else {
+                    "FALSE".to_string()
+                }
+            },
+            RuntimeValue::Null => "NULL".to_string(),
+            _ => unimplemented!(),
+        }
+    }
+}
+
+pub fn default_type_value(ty: &Type) -> RuntimeValue {
+    match ty {
+        Type::Int => RuntimeValue::Int(0),
+        Type::Float => RuntimeValue::Float(0.0),
+        Type::Str => RuntimeValue::Str(String::new()),
+        Type::Bool => RuntimeValue::Bool(false),
+        Type::Null => RuntimeValue::Null,
+        Type::Array(ele_ty, start, end) => {
+            let arr = ArrayObj::new(*ele_ty.clone(), *start, *end);
+            RuntimeValue::Array(Rc::new(RefCell::new(arr)))
+        }
+        _ => unimplemented!(),
+    }
+}

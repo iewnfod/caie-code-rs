@@ -26,6 +26,11 @@ pub enum Expr {
 		name: String,
 		args: Vec<Expr>,
 		span: Option<Span>,
+	},
+	Index {
+		target: Box<Expr>,
+		index: Box<Expr>,
+		span: Option<Span>,
 	}
 }
 
@@ -33,6 +38,12 @@ pub enum Expr {
 pub enum Stmt {
 	Assign {
 		name: String,
+		value: Expr,
+		span: Option<Span>,
+	},
+	IndexAssign {
+		target: Expr,
+		index: Expr,
 		value: Expr,
 		span: Option<Span>,
 	},

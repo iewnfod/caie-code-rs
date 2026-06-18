@@ -42,6 +42,4 @@ fn assign() {
 	// 执行内核逻辑
 	let mut interpreter = Interpreter::debug();
 	interpreter.execute(mock_ast);
-
-	interpreter.print_environment();
 }

@@ -24,7 +24,7 @@ impl Interpreter {
 
 	pub fn debug_print<T: ToString>(&self, message: T) {
 		if self.debug {
-			println!("{}", message.to_string().purple());
+			debug_print(self.debug, message);
 		}
 	}
 
@@ -253,11 +253,20 @@ impl Interpreter {
 			},
 			_ => unimplemented!(),
 		}
+		self.print_scope();
 	}
 
-	pub fn print_environment(&self) {
-		self.debug_print("===== Environment State =====");
-		self.debug_print(format!("{:?}", self.current_scope));
-		self.debug_print("=============================");
+	pub fn print_scope(&self) {
+		if self.debug {
+			self.debug_print("======== Scope State ========");
+			crate::scope::print_scope(&self.current_scope, self.debug, 0);
+			self.debug_print("=============================");			
+		}
+	}
+}
+
+pub fn debug_print<T: ToString>(debug: bool, message: T) {
+	if debug {
+		println!("{}", message.to_string().purple());
 	}
 }

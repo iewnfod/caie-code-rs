@@ -25,8 +25,6 @@ fn for_loop() {
 	// 执行内核逻辑
 	let mut interpreter = Interpreter::debug();
 	interpreter.execute(mock_ast);
-
-	interpreter.print_environment();
 }
 
 #[test]
@@ -89,8 +87,6 @@ fn while_loop() {
 
 	let mut interpreter = Interpreter::debug();
 	interpreter.execute(mock_ast);
-
-	interpreter.print_environment();
 }
 
 #[test]
@@ -153,6 +149,4 @@ fn repeat_loop() {
 
 	let mut interpreter = Interpreter::debug();
 	interpreter.execute(mock_ast);
-
-	interpreter.print_environment();
 }

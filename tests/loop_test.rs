@@ -1,4 +1,4 @@
-use caie_code_rs::{Expr, Interpreter, ObjectAccess, Op, RuntimeValue, Stmt, TypeDefinition};
+use caie_code_rs::{Expr, Interpreter, Op, RuntimeValue, Stmt, Type};
 
 #[test]
 fn for_loop() {
@@ -11,8 +11,8 @@ fn for_loop() {
 				end: Expr::Literal { value: RuntimeValue::Int(10), span: None },
 				body: Box::new(Stmt::Print {
 					value: vec![Expr::Get {
-						name: ObjectAccess::Direct { name: "i".to_string(), span: None },
-						index: None, span: None,
+						name: "i".to_string(),
+						span: None,
 					}],
 					span: None,
 				}),
@@ -35,7 +35,7 @@ fn while_loop() {
 		stmts: vec![
 			Stmt::VarDecl {
 				name: "X".to_string(),
-				var_type: TypeDefinition::Primitive("INT".into()),
+				var_type: Type::Int,
 				span: None,
 			},
 			Stmt::While {
@@ -50,29 +50,18 @@ fn while_loop() {
 									value: RuntimeValue::Str("=".to_string()), span: None,
 								},
 								Expr::Get {
-									name: ObjectAccess::Direct {
-										name: "X".to_string(),
-										span: None,
-									},
-									index: None,
+									name: "X".to_string(),
 									span: None,
 								}
 							],
 							span: None,
 						},
 						Stmt::Assign {
-							name: ObjectAccess::Direct {
-								name: "X".to_string(),
-								span: None,
-							},
-							index: None,
+							name: "X".to_string(),
 							value: Expr::Binary {
 								left: Box::new(Expr::Get {
-									name: ObjectAccess::Direct {
-										name: "X".to_string(),
-										span: None,
-									},
-									index: None, span: None,
+									name: "X".to_string(),
+									span: None,
 								}),
 								op: Op::Add,
 								right: Box::new(Expr::Literal { value: RuntimeValue::Int(1), span: None }),
@@ -85,8 +74,8 @@ fn while_loop() {
 				}),
 				condition: Expr::Binary {
 					left: Box::new(Expr::Get {
-						name: ObjectAccess::Direct { name: "X".to_string(), span: None },
-						index: None, span: None,
+						name: "X".to_string(),
+						span: None,
 					}),
 					op: Op::Lt,
 					right: Box::new(Expr::Literal { value: RuntimeValue::Int(5), span: None }),
@@ -110,7 +99,7 @@ fn repeat_loop() {
 		stmts: vec![
 			Stmt::VarDecl {
 				name: "X".to_string(),
-				var_type: TypeDefinition::Primitive("INT".into()),
+				var_type: Type::Int,
 				span: None,
 			},
 			Stmt::Repeat {
@@ -125,29 +114,18 @@ fn repeat_loop() {
 									value: RuntimeValue::Str("=".to_string()), span: None,
 								},
 								Expr::Get {
-									name: ObjectAccess::Direct {
-										name: "X".to_string(),
-										span: None,
-									},
-									index: None,
+									name: "X".to_string(),
 									span: None,
 								}
 							],
 							span: None,
 						},
 						Stmt::Assign {
-							name: ObjectAccess::Direct {
-								name: "X".to_string(),
-								span: None,
-							},
-							index: None,
+							name: "X".to_string(),
 							value: Expr::Binary {
 								left: Box::new(Expr::Get {
-									name: ObjectAccess::Direct {
-										name: "X".to_string(),
-										span: None,
-									},
-									index: None, span: None,
+									name: "X".to_string(),
+									span: None,
 								}),
 								op: Op::Add,
 								right: Box::new(Expr::Literal { value: RuntimeValue::Int(1), span: None }),
@@ -160,8 +138,8 @@ fn repeat_loop() {
 				}),
 				condition: Expr::Binary {
 					left: Box::new(Expr::Get {
-						name: ObjectAccess::Direct { name: "X".to_string(), span: None },
-						index: None, span: None,
+						name: "X".to_string(),
+						span: None,
 					}),
 					op: Op::Gt,
 					right: Box::new(Expr::Literal { value: RuntimeValue::Int(5), span: None }),

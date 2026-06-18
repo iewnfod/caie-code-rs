@@ -1,4 +1,4 @@
-use caie_code_rs::{Expr, Interpreter, ObjectAccess, Op, RuntimeValue, Stmt, TypeDefinition};
+use caie_code_rs::{Expr, Interpreter, Op, RuntimeValue, Stmt, Type};
 
 #[test]
 fn assign() {
@@ -7,15 +7,11 @@ fn assign() {
 		stmts: vec![
 			Stmt::VarDecl {
 				name: "X".to_string(),
-				var_type: TypeDefinition::Primitive("INT".into()),
+				var_type: Type::Int,
 				span: None,
 			},
 			Stmt::Assign {
-				name: ObjectAccess::Direct {
-					name: "X".to_string(),
-					span: None,
-				},
-				index: None,
+				name: "X".to_string(),
 				value: Expr::Binary {
 					left: Box::new(Expr::Literal {value: RuntimeValue::Int(10), span: None}),
 					op: Op::Add,
@@ -33,11 +29,7 @@ fn assign() {
 						value: RuntimeValue::Str("=".to_string()), span: None,
 					},
 					Expr::Get {
-						name: ObjectAccess::Direct {
-							name: "X".to_string(),
-							span: None,
-						},
-						index: None,
+						name: "X".to_string(),
 						span: None,
 					}
 				],

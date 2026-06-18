@@ -1,23 +1,23 @@
-use crate::{Environment, Expr, ObjPtr, ObjectAccess, Op, RuntimeValue, Stmt, TypeDefinition};
+use crate::{Expr, Op, RuntimeValue, Scope, ScopeRef, Stmt, Type};
 use colored::Colorize;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Interpreter {
-	pub environment: Environment,  // 当前作用域
+	pub current_scope: ScopeRef,
 	pub debug: bool, // 是否开启调试模式
 }
 
 impl Interpreter {
 	pub fn new() -> Self {
 		Interpreter {
-			environment: Environment::new(None),
+			current_scope: Scope::root(),
 			debug: false,
 		}
 	}
 
 	pub fn debug() -> Self {
 		Interpreter {
-			environment: Environment::new(None),
+			current_scope: Scope::root(),
 			debug: true,
 		}
 	}
@@ -51,12 +51,9 @@ impl Interpreter {
 					None
 				}
 			},
-			Expr::Get { name, index, .. } => {
-				self.get(name, index)
+			Expr::Get { name, .. } => {
+				self.get(name)
 			},
-			Expr::Call { name, args, .. } => {
-				self.call_func(name, args)
-			}
 			_ => unimplemented!(),
 		}
 	}
@@ -151,157 +148,69 @@ impl Interpreter {
 		}
 	}
 
-	pub fn get(&mut self, name: ObjectAccess, index: Option<Box<Expr>>) -> Option<RuntimeValue> {
-		self.debug_print(format!("Getting value for: {:?} with index {:?}", name, index));
-		let mut i = None;
-		let mut result = None;
-		if let Some(index) = index {
-			i = self.evaluate(*index);
-		}
-		match name {
-			ObjectAccess::Direct { name, .. } => {
-				if let Some(var) = self.environment.get(name) {
-					if i.is_none() && !matches!(var.0.borrow().definition, TypeDefinition::Primitive(_)) {
-						result = Some(RuntimeValue::Obj(var.clone()));
-					} else {
-						result = var.0.borrow_mut().get_var_value(i);
-					}
-				}
-			},
-			ObjectAccess::Deep { name, next, .. } => {
-				if let Some(var) = self.environment.get(name) {
-					result = var.0.borrow_mut().get_value_with_depths(*next, i);
-				}
-			}
-		}
-		result
+	pub fn get(&mut self, name: String) -> Option<RuntimeValue> {
+		self.debug_print(format!("Getting value for: {:?}", name));
+		crate::scope::get(&self.current_scope, &name)
 	}
 
-	pub fn get_method(&mut self, name: ObjectAccess) -> Option<ObjPtr> {
-		self.debug_print(format!("Getting method for: {:?}", name));
-		let mut result = None;
-		match name {
-			ObjectAccess::Direct { name, .. } => {
-				if let Some(var) = self.environment.get(name) {
-					result = var.0.borrow_mut().get_func_ptr();
-				}
-			},
-			ObjectAccess::Deep { name, next, .. } => {
-				if let Some(var) = self.environment.get(name) {
-					if let Some(obj) = var.0.borrow_mut().get_value_with_depths(*next, None) {
-						if let RuntimeValue::Obj(obj_ptr) = obj {
-							result = obj_ptr.0.borrow_mut().get_func_ptr();
-						}
-					}
-				}
-			}
-		}
-		result
-	}
-
-	pub fn assign(&mut self, name: ObjectAccess, value: Expr, index: Option<Expr>) {
-		if let Some(val) = self.evaluate(value) {
-			let mut i = None;
-			if let Some(index) = index {
-				i = self.evaluate(index);
-			}
-			self.environment.assign(name, val, i);
+	pub fn set(&mut self, name: String, value: Expr) -> bool {
+		self.debug_print(format!("Setting value for: {:?} to {:?}", name, value));
+		if let Some(value) = self.evaluate(value) {
+			crate::scope::set(&self.current_scope, &name, value)
+		} else {
+			false
 		}
 	}
 
-	pub fn get_print_string(&mut self, val: RuntimeValue) -> String {
-		let t = val.get_type();
-		let final_s = format!("{:?}", val);
-		match val {
-			RuntimeValue::Str(s) => s,
-			RuntimeValue::Int(n) => n.to_string(),
-			RuntimeValue::Bool(b) => {
-				if b {
-					"TRUE".to_string()
-				} else {
-					"FALSE".to_string()
-				}
-			},
-			RuntimeValue::Float(f) => f.to_string(),
-			RuntimeValue::Null => "NULL".to_string(),
-			RuntimeValue::Obj(obj_ptr) => {
-				match t {
-					TypeDefinition::Array { start, end, .. } => {
-						let mut elements = vec![];
-						for i in start..=end {
-							if let Some(elem) = obj_ptr.0.borrow_mut().get_value("", Some(RuntimeValue::Int((i as usize).try_into().unwrap()))) {
-								elements.push(format!("{}", self.get_print_string(elem)));
-							} else {
-								elements.push("NULL".to_string());
-							}
-						}
-						format!("[{}]", elements.join(", "))
-					},
-					_ => final_s,
-				}
-			},
-		}
+	pub fn define(&mut self, name: String, var_type: Type) {
+		self.debug_print(format!("Defining variable: {:?} with type {:?}", name, var_type));
+		let value = match var_type {
+			Type::Int => RuntimeValue::Int(0),
+			Type::Float => RuntimeValue::Float(0.0),
+			Type::Str => RuntimeValue::Str(String::new()),
+			Type::Bool => RuntimeValue::Bool(false),
+			Type::Null => RuntimeValue::Null,
+			_ => unimplemented!(),
+		};
+		crate::scope::define(&self.current_scope, name, value);
 	}
 
 	pub fn print(&mut self, value: Vec<Expr>) {
-		for (index, expr) in value.iter().enumerate() {
-			if let Some(val) = self.evaluate(expr.clone()) {
-				let s = self.get_print_string(val);
-				print!("{}", s);
-				if index != value.len() - 1 {
-					print!(" ");
-				}
+		for expr in value {
+			if let Some(val) = self.evaluate(expr) {
+				print!("{:?} ", val);
 			} else {
-				break;
+				print!("None ");
 			}
 		}
-		println!("");
-	}
-
-	pub fn new_scope(&mut self) {
-		self.debug_print("New Scope");
-		self.environment = self.environment.new_child();
-	}
-
-	pub fn exit_scope(&mut self) {
-		self.debug_print("Exit Scope");
-		self.print_environment();
-		if let Some(parent) = self.environment.ancestor(0) {
-			self.environment = parent.take();
-			self.debug_print("Returned to parent scope");
-		} else {
-			self.debug_print("No parent scope found, staying in current scope");
-		}
+		println!();
 	}
 
 	pub fn execute(&mut self, stmt: Stmt) {
 		match stmt {
-			Stmt::Assign { name, value, index, .. } => {
-				self.debug_print(format!("Assign {:?} to {:?} with index {:?}", value, name, index));
-				self.assign(name, value, index);
+			Stmt::Assign { name, value, .. } => {
+				self.debug_print(format!("Assign {:?} to {:?}", value, name));
+				self.set(name, value);
 			},
 			Stmt::VarDecl { name, var_type, .. } => {
 				self.debug_print(format!("Declaring variable: {}", name));
-				self.environment.define(name.clone(), var_type);
+				self.define(name, var_type);
 			},
 			Stmt::Block { stmts, .. } => {
-				self.new_scope();
+				let child = Scope::child(self.current_scope.clone());
+				let saved = std::mem::replace(&mut self.current_scope, child);
 				for stmt in stmts {
 					self.execute(stmt);
 				}
-				self.exit_scope();
-			},
-			Stmt::Print { value, .. } => {
-				self.debug_print(format!("Printing values: {:?}", value));
-				self.print(value);
+				self.current_scope = saved;
 			},
 			Stmt::If { condition, true_body, false_body, .. } => {
 				self.debug_print(format!("Executing if statement with condition: {:?}", condition));
 				self.if_stmt(condition, true_body, false_body);
 			},
-			Stmt::For { var_name, start, end, body, .. } => {
+			Stmt::For { var_name, start, end, body, span, .. } => {
 				self.debug_print(format!("Executing for loop with variable: {}, start: {:?}, end: {:?}", var_name, start, end));
-				self.for_stmt(var_name, start, end, body);
+				self.for_stmt(var_name, start, end, body, span);
 			},
 			Stmt::While { condition, body, .. } => {
 				self.debug_print(format!("Executing while loop with condition: {:?}", condition));
@@ -311,21 +220,21 @@ impl Interpreter {
 				self.debug_print(format!("Executing repeat loop with condition: {:?}", condition));
 				self.repeat_stmt(body, condition);
 			},
-			Stmt::FuncDecl { name, params, body, .. } => {
-				self.debug_print(format!("Declaring function: {}", name));
-				self.environment.define_func(name, params, body);
-			},
 			Stmt::Expr { value, .. } => {
 				self.debug_print(format!("Evaluating expression statement: {:?}", value));
 				self.evaluate(value);
-			}
+			},
+			Stmt::Print { value, .. } => {
+				self.debug_print(format!("Executing print statement with value: {:?}", value));
+				self.print(value);
+			},
 			_ => unimplemented!(),
 		}
 	}
 
 	pub fn print_environment(&self) {
 		self.debug_print("===== Environment State =====");
-		self.debug_print(format!("{:?}", self.environment));
+		self.debug_print(format!("{:?}", self.current_scope));
 		self.debug_print("=============================");
 	}
 }

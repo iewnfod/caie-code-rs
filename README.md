@@ -40,11 +40,11 @@ MIT
 
 ## Features & Roadmap
 - [x] Basic Literal Types `INT`, `REAL`, `STRING`, `BOOLEAN`.
-- [x] Array (Multi-Dimension Array is logically supported, but still without index method)
+- [ ] Array
 - [x] `IF` Statement.
 - [x] `FOR`, `WHILE`, `UNTIL` loop.
 - [ ] `FUNCTION` and `PROCEDURE`.
-	- [x] `PROCEDURE` A function without return
+	- [ ] `PROCEDURE` A function without return.
 - [ ] `INPUT` and `OUTPUT`.
 - [ ] `CALL` and `RETURN`.
 - [ ] `MATCH` and `CASE`.

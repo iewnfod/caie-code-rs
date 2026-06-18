@@ -1,4 +1,4 @@
-use crate::core::RuntimeValue;
+use crate::{Type, core::RuntimeValue};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Span {
@@ -19,36 +19,21 @@ pub enum Expr {
 		span: Option<Span>,
 	},
 	Get {
-		name: ObjectAccess,
-		index: Option<Box<Expr>>, // 支持数组元素访问，如 arr[0]
+		name: String,
 		span: Option<Span>,
 	},
 	Call {  // 调用函数
-		name: ObjectAccess,
+		name: String,
 		args: Vec<Expr>,
 		span: Option<Span>,
 	}
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ObjectAccess {
-	Direct {
-		name: String,
-		span: Option<Span>,
-	},
-	Deep {
-		name: String,
-		next: Box<ObjectAccess>, // 支持 a.b.c 这种深层次赋值
-		span: Vec<Option<Span>>,
-	},
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
 	Assign {
-		name: ObjectAccess,
+		name: String,
 		value: Expr,
-		index: Option<Expr>, // 支持数组元素赋值，如 arr[0] = 10
 		span: Option<Span>,
 	},
 	Block {
@@ -57,18 +42,12 @@ pub enum Stmt {
 	},
 	TypeDecl {
 		name: String,
-		fields: Vec<(String, TypeDefinition)>, // field name and type name
-		span: Option<Span>,
-	},
-	FuncDecl {
-		name: String,
-		params: Vec<(String, TypeDefinition)>, // param name and type name
-		body: Box<Stmt>,
+		fields: Vec<(String, Type)>, // field name and type name
 		span: Option<Span>,
 	},
 	VarDecl {
 		name: String,
-		var_type: TypeDefinition,
+		var_type: Type,
 		span: Option<Span>,
 	},
 	Print {
@@ -120,13 +99,4 @@ pub enum Op {
 	Not,
 	And,
 	Or,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum TypeDefinition {
-    Primitive(String), // "INTEGER", "REAL" ...
-	Array { element_type: Box<TypeDefinition>, start: usize, end: usize }, // Array of fixed size
-    Record { fields: Vec<(String, TypeDefinition)> }, // TYPE ... ENDTYPE
-    Class { statements: Vec<Stmt> }, // CLASS ... ENDCLASS
-	Func { params: Vec<(String, TypeDefinition)>, body: Box<Stmt> }, // FUNCTION ... ENDFUNCTION
 }

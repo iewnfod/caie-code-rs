@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::core::{array::ArrayObj, func::FuncObj, record::RecordObj};
+use crate::{CpcResult, core::{array::ArrayObj, func::FuncObj, record::RecordObj}};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RuntimeValue {
@@ -46,19 +46,42 @@ impl RuntimeValue {
             RuntimeValue::Func(func_obj) => {
                 format!("<function {}>", func_obj.borrow().name())
             }
-            _ => unimplemented!(),
+            _ => "<object>".to_string(),
         }
     }
 }
 
-pub fn default_type_value(ty: &Type) -> RuntimeValue {
+pub fn default_type_value(ty: &Type) -> CpcResult<RuntimeValue> {
     match ty {
-        Type::Int => RuntimeValue::Int(0),
-        Type::Float => RuntimeValue::Float(0.0),
-        Type::Str => RuntimeValue::Str(String::new()),
-        Type::Bool => RuntimeValue::Bool(false),
-        Type::Null => RuntimeValue::Null,
+        Type::Int => Ok(RuntimeValue::Int(0)),
+        Type::Float => Ok(RuntimeValue::Float(0.0)),
+        Type::Str => Ok(RuntimeValue::Str(String::new())),
+        Type::Bool => Ok(RuntimeValue::Bool(false)),
+        Type::Null => Ok(RuntimeValue::Null),
         Type::Array(ele_ty, start, end) => ArrayObj::new_runtime(*ele_ty.clone(), *start, *end),
-        _ => unimplemented!(),
+        _ => Err(crate::CpcError::Runtime {
+            span: None,
+            kind: crate::RuntimeErrorKind::TypeWithoutDefaultValue(ty.clone()),
+        }),
+    }
+}
+
+pub fn get_value_type(value: &RuntimeValue) -> CpcResult<Type> {
+    match value {
+        RuntimeValue::Int(_) => Ok(Type::Int),
+        RuntimeValue::Float(_) => Ok(Type::Float),
+        RuntimeValue::Str(_) => Ok(Type::Str),
+        RuntimeValue::Bool(_) => Ok(Type::Bool),
+        RuntimeValue::Null => Ok(Type::Null),
+        RuntimeValue::Array(arr_obj) => {
+            let arr = arr_obj.borrow();
+            let start = arr.get(arr.start())?;
+            let ele_type = get_value_type(&start)?;
+            Ok(Type::Array(Box::new(ele_type), arr.start(), arr.end()))
+        },
+        _ => Err(crate::CpcError::Runtime {
+            span: None,
+            kind: crate::RuntimeErrorKind::UnknownType(value.clone()),
+        }),
     }
 }

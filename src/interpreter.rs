@@ -1,4 +1,4 @@
-use crate::{Expr, Op, RuntimeValue, Scope, ScopeRef, Type, default_type_value, utils::debug_print};
+use crate::{CpcResult, Expr, Op, RuntimeValue, Scope, ScopeRef, Type, default_type_value, get_value_type, utils::debug_print};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Flow {
@@ -12,6 +12,7 @@ pub enum Flow {
 pub struct Interpreter {
 	pub current_scope: ScopeRef,
 	pub debug: bool, // 是否开启调试模式
+	pub show_time: bool, // 是否显示执行时间
 }
 
 impl Interpreter {
@@ -19,6 +20,7 @@ impl Interpreter {
 		Interpreter {
 			current_scope: Scope::root(),
 			debug: false,
+			show_time: false,
 		}
 	}
 
@@ -26,6 +28,7 @@ impl Interpreter {
 		Interpreter {
 			current_scope: Scope::root(),
 			debug: true,
+			show_time: false,
 		}
 	}
 
@@ -45,174 +48,197 @@ impl Interpreter {
 		}
 	}
 
-	pub fn evaluate(&mut self, expr: Expr) -> Option<RuntimeValue> {
+	pub fn evaluate(&mut self, expr: Expr) -> CpcResult<RuntimeValue> {
 		self.debug_print(format!("Evaluating expression: {:?}", expr));
 		match expr {
-			Expr::Literal { value, .. } => Some(value),
+			Expr::Literal { value, .. } => Ok(value),
 			Expr::Binary { left, op, right, .. } => {
-				let left_val = self.evaluate(*left);
-				let right_val = self.evaluate(*right);
-				if let Some(left) = left_val && let Some(right) = right_val {
-					self.binary_op(left, op, right)
-				} else {
-					None
-				}
+				let left_val = self.evaluate(*left)?;
+				let right_val = self.evaluate(*right)?;
+				self.binary_op(left_val, op, right_val)
 			},
 			Expr::Get { name, .. } => {
 				self.get(name)
 			},
-			Expr::Index { target, index, .. } => {
-				let container = self.evaluate(*target);
-				let idx = self.evaluate(*index);
+			Expr::Index { target, index, span } => {
+				let container = self.evaluate(*target)?;
+				let idx = self.evaluate(*index)?;
 				match (container, idx) {
-					(Some(RuntimeValue::Array(arr)), Some(RuntimeValue::Int(i))) => {
+					(RuntimeValue::Array(arr), RuntimeValue::Int(i)) => {
 						arr.borrow().get(i as usize)
 					},
-					_ => None,
+					_ => Err(crate::CpcError::Runtime { 
+						span: span, kind: crate::RuntimeErrorKind::Other("Invalid index operation".into()) 
+					}),
 				}
 			},
 			Expr::Call { name, args, .. } => {
-				Some(self.call_func(name, args))
+				self.call_func(name, args)
 			},
-			_ => unimplemented!(),
+			Expr::Unary { op, operand, .. } => {
+				let value = self.evaluate(*operand)?;
+				self.unary_op(op, value)
+			},
+			_ => {
+				Err(crate::CpcError::Runtime { 
+					span: None, kind: crate::RuntimeErrorKind::Other("Unsupported expression".into()) 
+				})
+			}
 		}
 	}
 
-	pub fn binary_op(&self, left: RuntimeValue, op: Op, right: RuntimeValue) -> Option<RuntimeValue> {
+	pub fn unary_op(&self, op: Op, value: RuntimeValue) -> CpcResult<RuntimeValue> {
+		self.debug_print(format!("Evaluating unary operation: {:?} {:?}", op, value));
+		let value_clone = value.clone();
+		match (op, value) {
+			(Op::Neg, RuntimeValue::Int(i)) => Ok(RuntimeValue::Int(-i)),
+			(Op::Neg, RuntimeValue::Float(f)) => Ok(RuntimeValue::Float(-f)),
+			(Op::Not, RuntimeValue::Bool(b)) => Ok(RuntimeValue::Bool(!b)),
+			_ => Err(crate::CpcError::Runtime { 
+				span: None, kind: crate::RuntimeErrorKind::InvalidUnaryOp { op, operand: get_value_type(&value_clone)? }
+			}),
+		}
+	}
+
+	pub fn binary_op(&self, left: RuntimeValue, op: Op, right: RuntimeValue) -> CpcResult<RuntimeValue> {
 		self.debug_print(format!("Evaluating binary operation: {:?} {:?} {:?}", left, op, right));
+		let left_clone = left.clone();
 		let right_clone = right.clone();
 		match (left, right) {
 			(RuntimeValue::Int(l), RuntimeValue::Int(r)) => {
 				match op {
-					Op::Add => Some(RuntimeValue::Int(l + r)),
-					Op::Sub => Some(RuntimeValue::Int(l - r)),
-					Op::Mul => Some(RuntimeValue::Int(l * r)),
-					Op::Div => Some(RuntimeValue::Int(l / r)),
-					Op::And => Some(RuntimeValue::Bool(l != 0 && r != 0)),
-					Op::Or => Some(RuntimeValue::Bool(l != 0 || r != 0)),
-					Op::Eq => Some(RuntimeValue::Bool(l == r)),
-					Op::Mod => Some(RuntimeValue::Int(l % r)),
-					Op::Gt => Some(RuntimeValue::Bool(l > r)),
-					Op::Lt => Some(RuntimeValue::Bool(l < r)),
-					Op::Gte => Some(RuntimeValue::Bool(l >= r)),
-					Op::Lte => Some(RuntimeValue::Bool(l <= r)),
-					Op::Neq => Some(RuntimeValue::Bool(l != r)),
-					_ => unimplemented!(),
+					Op::Add => Ok(RuntimeValue::Int(l + r)),
+					Op::Sub => Ok(RuntimeValue::Int(l - r)),
+					Op::Mul => Ok(RuntimeValue::Int(l * r)),
+					Op::Div => Ok(RuntimeValue::Int(l / r)),
+					Op::And => Ok(RuntimeValue::Bool(l != 0 && r != 0)),
+					Op::Or => Ok(RuntimeValue::Bool(l != 0 || r != 0)),
+					Op::Eq => Ok(RuntimeValue::Bool(l == r)),
+					Op::Mod => Ok(RuntimeValue::Int(l % r)),
+					Op::Gt => Ok(RuntimeValue::Bool(l > r)),
+					Op::Lt => Ok(RuntimeValue::Bool(l < r)),
+					Op::Gte => Ok(RuntimeValue::Bool(l >= r)),
+					Op::Lte => Ok(RuntimeValue::Bool(l <= r)),
+					Op::Neq => Ok(RuntimeValue::Bool(l != r)),
+					_ => Err(crate::CpcError::Runtime {
+						span: None,
+						kind: crate::RuntimeErrorKind::InvalidOp { op, left: get_value_type(&left_clone)?, right: get_value_type(&right_clone)? },
+					}),
 				}
 			},
 			(RuntimeValue::Float(l), RuntimeValue::Float(r)) => {
 				match op {
-					Op::Add => Some(RuntimeValue::Float(l + r)),
-					Op::Sub => Some(RuntimeValue::Float(l - r)),
-					Op::Mul => Some(RuntimeValue::Float(l * r)),
-					Op::Div => Some(RuntimeValue::Float(l / r)),
-					Op::And => Some(RuntimeValue::Bool(l != 0.0 && r != 0.0)),
-					Op::Or => Some(RuntimeValue::Bool(l != 0.0 || r != 0.0)),
-					Op::Eq => Some(RuntimeValue::Bool(l == r)),
-					Op::Gt => Some(RuntimeValue::Bool(l > r)),
-					Op::Lt => Some(RuntimeValue::Bool(l < r)),
-					Op::Gte => Some(RuntimeValue::Bool(l >= r)),
-					Op::Lte => Some(RuntimeValue::Bool(l <= r)),
-					Op::Neq => Some(RuntimeValue::Bool(l != r)),
-					_ => unimplemented!(),
+					Op::Add => Ok(RuntimeValue::Float(l + r)),
+					Op::Sub => Ok(RuntimeValue::Float(l - r)),
+					Op::Mul => Ok(RuntimeValue::Float(l * r)),
+					Op::Div => Ok(RuntimeValue::Float(l / r)),
+					Op::And => Ok(RuntimeValue::Bool(l != 0.0 && r != 0.0)),
+					Op::Or => Ok(RuntimeValue::Bool(l != 0.0 || r != 0.0)),
+					Op::Eq => Ok(RuntimeValue::Bool(l == r)),
+					Op::Gt => Ok(RuntimeValue::Bool(l > r)),
+					Op::Lt => Ok(RuntimeValue::Bool(l < r)),
+					Op::Gte => Ok(RuntimeValue::Bool(l >= r)),
+					Op::Lte => Ok(RuntimeValue::Bool(l <= r)),
+					Op::Neq => Ok(RuntimeValue::Bool(l != r)),
+					_ => Err(crate::CpcError::Runtime {
+						span: None,
+						kind: crate::RuntimeErrorKind::InvalidOp { op, left: get_value_type(&left_clone)?, right: get_value_type(&right_clone)? },
+					}),
 				}
 			},
 			(RuntimeValue::Str(l), RuntimeValue::Str(r)) => {
 				match op {
-					Op::Add => Some(RuntimeValue::Str(l + &r)),
-					Op::Eq => Some(RuntimeValue::Bool(l == r)),
-					Op::Gt => Some(RuntimeValue::Bool(l > r)),
-					Op::Lt => Some(RuntimeValue::Bool(l < r)),
-					Op::Gte => Some(RuntimeValue::Bool(l >= r)),
-					Op::Lte => Some(RuntimeValue::Bool(l <= r)),
-					Op::Neq => Some(RuntimeValue::Bool(l != r)),
-					_ => unimplemented!(),
+					Op::Add => Ok(RuntimeValue::Str(l + &r)),
+					Op::Eq => Ok(RuntimeValue::Bool(l == r)),
+					Op::Gt => Ok(RuntimeValue::Bool(l > r)),
+					Op::Lt => Ok(RuntimeValue::Bool(l < r)),
+					Op::Gte => Ok(RuntimeValue::Bool(l >= r)),
+					Op::Lte => Ok(RuntimeValue::Bool(l <= r)),
+					Op::Neq => Ok(RuntimeValue::Bool(l != r)),
+					Op::Concat => Ok(RuntimeValue::Str(l + &r)),
+					_ => Err(crate::CpcError::Runtime {
+						span: None,
+						kind: crate::RuntimeErrorKind::InvalidOp { op, left: get_value_type(&left_clone)?, right: get_value_type(&right_clone)? },
+					}),
 				}
 			},
 			(RuntimeValue::Bool(l), RuntimeValue::Bool(r)) => {
 				match op {
-					Op::And => Some(RuntimeValue::Bool(l && r)),
-					Op::Or => Some(RuntimeValue::Bool(l || r)),
-					Op::Eq => Some(RuntimeValue::Bool(l == r)),
-					Op::Neq => Some(RuntimeValue::Bool(l != r)),
-					_ => unimplemented!(),
+					Op::And => Ok(RuntimeValue::Bool(l && r)),
+					Op::Or => Ok(RuntimeValue::Bool(l || r)),
+					Op::Eq => Ok(RuntimeValue::Bool(l == r)),
+					Op::Neq => Ok(RuntimeValue::Bool(l != r)),
+					_ => Err(crate::CpcError::Runtime {
+						span: None,
+						kind: crate::RuntimeErrorKind::InvalidOp { op, left: get_value_type(&left_clone)?, right: get_value_type(&right_clone)? },
+					}),
 				}
 			},
 			(RuntimeValue::Null, RuntimeValue::Null) => {
 				match op {
-					Op::Eq => Some(RuntimeValue::Bool(true)),
-					Op::Neq => Some(RuntimeValue::Bool(false)),
-					_ => unimplemented!(),
+					Op::Eq => Ok(RuntimeValue::Bool(true)),
+					Op::Neq => Ok(RuntimeValue::Bool(false)),
+					_ => Err(crate::CpcError::Runtime {
+						span: None,
+						kind: crate::RuntimeErrorKind::InvalidOp { op, left: get_value_type(&left_clone)?, right: get_value_type(&right_clone)? },
+					}),
 				}
 			},
-			// (RuntimeValue::Obj(l), RuntimeValue::Obj(_r)) => {
-			// 	let l = l.0.borrow();
-			// 	match op {
-			// 		Op::Eq => l.clone().call_method("__eq__", vec![right_clone]),
-			// 		Op::Neq => l.clone().call_method("__neq__", vec![right_clone]),
-			// 		Op::Gt => l.clone().call_method("__gt__", vec![right_clone]),
-			// 		Op::Lt => l.clone().call_method("__lt__", vec![right_clone]),
-			// 		Op::Gte => l.clone().call_method("__gte__", vec![right_clone]),
-			// 		Op::Lte => l.clone().call_method("__lte__", vec![right_clone]),
-			// 		Op::And => l.clone().call_method("__and__", vec![right_clone]),
-			// 		Op::Or => l.clone().call_method("__or__", vec![right_clone]),
-			// 		Op::Add => l.clone().call_method("__add__", vec![right_clone]),
-			// 		Op::Sub => l.clone().call_method("__sub__", vec![right_clone]),
-			// 		Op::Mul => l.clone().call_method("__mul__", vec![right_clone]),
-			// 		Op::Div => l.clone().call_method("__div__", vec![right_clone]),
-			// 		Op::Mod => l.clone().call_method("__mod__", vec![right_clone]),
-			// 		_ => unimplemented!(),
-			// 	}
-			// },
-			_ => unimplemented!(),
+			_ => Err(crate::CpcError::Runtime {
+				span: None,
+				kind: crate::RuntimeErrorKind::InvalidOp { op, left: get_value_type(&left_clone)?, right: get_value_type(&right_clone)? },
+			}),
 		}
 	}
 
-	pub fn get(&mut self, name: String) -> Option<RuntimeValue> {
+	pub fn get(&mut self, name: String) -> CpcResult<RuntimeValue> {
 		self.debug_print(format!("Getting value for: {:?}", name));
 		crate::scope::get(&self.current_scope, &name)
 	}
 
-	pub fn set(&mut self, name: String, value: Expr) -> bool {
+	pub fn set(&mut self, name: String, value: Expr) -> CpcResult<()> {
 		self.debug_print(format!("Setting value for: {:?} to {:?}", name, value));
-		if let Some(value) = self.evaluate(value) {
-			crate::scope::set(&self.current_scope, &name, value)
-		} else {
-			false
+		match self.evaluate(value) {
+			Ok(value) => crate::scope::set(&self.current_scope, &name, value),
+			Err(e) => Err(e),
 		}
 	}
 
-	pub fn define(&mut self, name: String, var_type: Type) {
+	pub fn define(&mut self, name: String, var_type: Type) -> CpcResult<()> {
 		self.debug_print(format!("Defining variable: {:?} with type {:?}", name, var_type));
-		let value = default_type_value(&var_type);
+		let value = default_type_value(&var_type)?;
 		crate::scope::define(&self.current_scope, name, value);
+		Ok(())
 	}
 
-	pub fn print(&mut self, value: Vec<Expr>) {
+	pub fn print(&mut self, value: Vec<Expr>) -> CpcResult<()> {
 		for expr in value {
-			if let Some(val) = self.evaluate(expr) {
-				print!("{} ", val.to_string());
-			} else {
-				// handle error
-				print!("NULL ");
-			}
+			let val = self.evaluate(expr)?;
+			print!("{} ", val.to_string());
 		}
 		println!();
+		Ok(())
 	}
 
-	pub fn index_set(&mut self, target: Expr, index: Expr, value: Expr) {
-		let value_val = self.evaluate(value);
-		let index_val = self.evaluate(index);
-		let target_val = self.evaluate(target);
+	pub fn index_set(&mut self, target: Expr, index: Expr, value: Expr) -> CpcResult<()> {
+		let value_val = self.evaluate(value)?;
+		let index_val = self.evaluate(index)?;
+		let target_val = self.evaluate(target)?;
 		let i = match index_val {
-			Some(RuntimeValue::Int(i)) => i as usize,
-			_ => return,
+			RuntimeValue::Int(i) => i as usize,
+			_ => return Err(crate::CpcError::Runtime {
+				span: None,
+				kind: crate::RuntimeErrorKind::InvalidIndex(index_val),
+			}),
 		};
-		match (target_val, value_val) {
-			(Some(RuntimeValue::Array(arr)), Some(value)) => {
-				arr.borrow_mut().set(i, value);
+		match target_val {
+			RuntimeValue::Array(arr) => {
+				arr.borrow_mut().set(i, value_val)
 			},
-			_ => return,
+			_ => return Err(crate::CpcError::Runtime {
+				span: None,
+				kind: crate::RuntimeErrorKind::NotIndexable(get_value_type(&target_val)?),
+			}),
 		}
 	}
 

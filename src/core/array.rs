@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{RuntimeValue, Type, default_type_value};
+use crate::{CpcResult, RuntimeValue, Type, default_type_value};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ArrayObj {
@@ -10,31 +10,46 @@ pub struct ArrayObj {
 }
 
 impl ArrayObj {
-    pub fn new(ele_type: Type, start: usize, end: usize) -> Self {
-        let size = end - start + 1;
-        let data = (0..size).map(|_| default_type_value(&ele_type)).collect();
-        ArrayObj { data, start, end }
+    pub fn new(ele_type: Type, start: usize, end: usize) -> CpcResult<Self> {
+        let size = end.saturating_sub(start).saturating_add(1);
+        let mut data = vec![];
+        for _ in 0..size {
+            data.push(default_type_value(&ele_type)?);
+        }
+        Ok(ArrayObj { data, start, end })
     }
 
-    pub fn new_runtime(ele_type: Type, start: usize, end: usize) -> RuntimeValue {
-        let arr = Self::new(ele_type, start, end);
-        RuntimeValue::Array(Rc::new(RefCell::new(arr)))
+    pub fn new_runtime(ele_type: Type, start: usize, end: usize) -> CpcResult<RuntimeValue> {
+        let arr = Self::new(ele_type, start, end)?;
+        Ok(RuntimeValue::Array(Rc::new(RefCell::new(arr))))
     }
 
-    pub fn get(&self, index: usize) -> Option<RuntimeValue> {
+    pub fn get(&self, index: usize) -> CpcResult<RuntimeValue> {
         if index < self.start || index > self.end {
-            None
+            Err(crate::CpcError::Runtime {
+                span: None,
+                kind: crate::RuntimeErrorKind::IndexOutOfBounds {
+                    index: index as i64,
+                    range: (self.start, self.end),
+                },
+            })
         } else {
-            Some(self.data[index - self.start].clone())
+            Ok(self.data[index - self.start].clone())
         }
     }
 
-    pub fn set(&mut self, index: usize, value: RuntimeValue) -> Option<()> {
+    pub fn set(&mut self, index: usize, value: RuntimeValue) -> CpcResult<()> {
         if index < self.start || index > self.end {
-            None
+            Err(crate::CpcError::Runtime {
+                span: None,
+                kind: crate::RuntimeErrorKind::IndexOutOfBounds {
+                    index: index as i64,
+                    range: (self.start, self.end),
+                },
+            })
         } else {
             self.data[index - self.start] = value;
-            Some(())
+            Ok(())
         }
     }
 

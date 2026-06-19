@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::{RuntimeValue, utils::debug_print};
+use crate::{CpcResult, RuntimeValue, utils::debug_print};
 
 pub type ScopeRef = Rc<RefCell<Scope>>;
 
@@ -30,31 +30,37 @@ pub fn define(scope: &ScopeRef, name: String, value: RuntimeValue) {
     scope.borrow_mut().vars.insert(name, value);
 }
 
-pub fn get(scope: &ScopeRef, name: &str) -> Option<RuntimeValue> {
+pub fn get(scope: &ScopeRef, name: &str) -> CpcResult<RuntimeValue> {
     let s = scope.borrow();
     if let Some(value) = s.vars.get(name) {
-        Some(value.clone())
+        Ok(value.clone())
     } else {
         let parent = s.parent.clone();
         drop(s);
         match parent {
             Some(p) => get(&p, name),
-            None => None,
+            None => Err(crate::CpcError::Runtime {
+                span: None,
+                kind: crate::RuntimeErrorKind::UndefinedVariable(name.to_string()),
+            }),
         }
     }
 }
 
-pub fn set(scope: &ScopeRef, name: &str, value: RuntimeValue) -> bool {
+pub fn set(scope: &ScopeRef, name: &str, value: RuntimeValue) -> CpcResult<()> {
     let mut s = scope.borrow_mut();
     if s.vars.contains_key(name) {
         s.vars.insert(name.to_string(), value);
-        true
+        Ok(())
     } else {
         let parent = s.parent.clone();
         drop(s);
         match parent {
             Some(p) => set(&p, name, value),
-            None => false,
+            None => Err(crate::CpcError::Runtime {
+                span: None,
+                kind: crate::RuntimeErrorKind::AssignToUndefined(name.to_string()),
+            }),
         }
     }
 }

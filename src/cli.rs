@@ -27,10 +27,17 @@ const DEBUG_ARG_OPTION: ArgOption = ArgOption {
 	description: Some("Enable debug mode"),
 };
 
+const TIME_ARG_OPTION: ArgOption = ArgOption {
+	short: "-t",
+	long: "--time",
+	description: Some("Show execution time"),
+};
+
 const ARG_OPTIONS: &[ArgOption] = &[
 	HELP_ARG_OPTION,
 	VERSION_ARG_OPTION,
 	DEBUG_ARG_OPTION,
+	TIME_ARG_OPTION,
 ];
 
 fn version() {
@@ -83,6 +90,7 @@ pub fn cli() {
 
 	let mut file_path = None;
 	let mut debug = false;
+	let mut show_time = false;
 	for arg in &args[1..] {
 		if arg.starts_with('-') {
 			if let Some(opt) = ARG_OPTIONS.iter().find(|opt| opt.short == arg || opt.long == arg) {
@@ -97,6 +105,9 @@ pub fn cli() {
 					},
 					DEBUG_ARG_OPTION => {
 						debug = true;
+					},
+					TIME_ARG_OPTION => {
+						show_time = true;
 					},
 					_ => {
 						invalid_arg(arg);
@@ -120,6 +131,8 @@ pub fn cli() {
 	} else {
 		Interpreter::new()
 	};
+
+	interpreter.show_time = show_time;
 
 	if file_path.is_none() {
 		inline_mode(&mut interpreter);

@@ -31,6 +31,11 @@ pub enum Expr {
 		target: Box<Expr>,
 		index: Box<Expr>,
 		span: Option<Span>,
+	},
+	Unary {
+		op: Op,
+		operand: Box<Expr>,
+		span: Option<Span>,
 	}
 }
 
@@ -109,6 +114,16 @@ pub enum Stmt {
 	Break {
 		span: Option<Span>,
 	},
+	Constant {
+		name: String,
+		value: Expr,
+		span: Option<Span>,
+	},
+	Input {
+		name: String,
+		prompt: Option<String>,
+		span: Option<Span>,
+	},
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -127,4 +142,6 @@ pub enum Op {
 	Not,
 	And,
 	Or,
+	Concat,
+	Neg,
 }

@@ -5,6 +5,8 @@ pub struct ParseConfig {
     pub allow_func_return: bool,
     pub allow_undefined_vars: bool,
     pub allow_plus_on_string: bool,
+    pub allow_equal_assign: bool,  // = as assignment operator, == as equality operator
+    pub allow_new_line_in_string: bool,
     // keywords: KeywordTable,
     // operators: OperatorTable,
 }
@@ -17,6 +19,8 @@ impl ParseConfig {
             allow_func_return: true,
             allow_undefined_vars: false,
             allow_plus_on_string: true,
+            allow_equal_assign: true,
+            allow_new_line_in_string: false,
         }
     }
 
@@ -27,6 +31,8 @@ impl ParseConfig {
             allow_func_return: true,
             allow_undefined_vars: false,
             allow_plus_on_string: false,
+            allow_equal_assign: false,
+            allow_new_line_in_string: false,
         }
     }
 }

@@ -132,6 +132,7 @@ pub enum Op {
 	Sub,
 	Mul,
 	Div,
+	FullDiv,
 	Mod,
 	Eq,
 	Neq,

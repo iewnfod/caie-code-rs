@@ -8,6 +8,7 @@ mod utils;
 mod func;
 mod config;
 mod error;
+mod lexer;
 
 pub use ast::*;
 pub use core::*;
@@ -17,3 +18,4 @@ pub use scope::ScopeRef;
 pub use cli::*;
 pub use config::*;
 pub use error::*;
+pub use lexer::*;

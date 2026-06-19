@@ -43,8 +43,7 @@ MIT
 - [x] Array & Multi-Dimensional Array.
 - [x] `IF` Statement.
 - [x] `FOR`, `WHILE`, `UNTIL` loop.
-- [ ] `FUNCTION` and `PROCEDURE`.
-	- [ ] `PROCEDURE` A function without return.
+- [x] `FUNCTION` and `PROCEDURE`.
 - [ ] `INPUT` and `OUTPUT`.
 - [ ] `CALL` and `RETURN`.
 - [ ] `MATCH` and `CASE`.

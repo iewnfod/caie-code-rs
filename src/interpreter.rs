@@ -1,5 +1,12 @@
-use crate::{Expr, Op, RuntimeValue, Scope, ScopeRef, Stmt, Type, default_type_value};
-use colored::Colorize;
+use crate::{Expr, Op, RuntimeValue, Scope, ScopeRef, Type, default_type_value, utils::debug_print};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Flow {
+    Return(RuntimeValue),
+    Break,
+    Continue,
+    Normal,
+}
 
 #[derive(Debug, Clone)]
 pub struct Interpreter {
@@ -63,6 +70,9 @@ impl Interpreter {
 					},
 					_ => None,
 				}
+			},
+			Expr::Call { name, args, .. } => {
+				Some(self.call_func(name, args))
 			},
 			_ => unimplemented!(),
 		}
@@ -181,9 +191,10 @@ impl Interpreter {
 	pub fn print(&mut self, value: Vec<Expr>) {
 		for expr in value {
 			if let Some(val) = self.evaluate(expr) {
-				print!("{:?} ", val);
+				print!("{} ", val.to_string());
 			} else {
-				print!("None ");
+				// handle error
+				print!("NULL ");
 			}
 		}
 		println!();
@@ -200,60 +211,9 @@ impl Interpreter {
 		match (target_val, value_val) {
 			(Some(RuntimeValue::Array(arr)), Some(value)) => {
 				arr.borrow_mut().set(i, value);
-			}
+			},
 			_ => return,
 		}
-	}
-
-	pub fn execute(&mut self, stmt: Stmt) {
-		match stmt {
-			Stmt::Assign { name, value, .. } => {
-				self.debug_print(format!("Assign {:?} to {:?}", value, name));
-				self.set(name, value);
-			},
-			Stmt::VarDecl { name, var_type, .. } => {
-				self.debug_print(format!("Declaring variable: {}", name));
-				self.define(name, var_type);
-			},
-			Stmt::Block { stmts, .. } => {
-				let child = Scope::child(self.current_scope.clone());
-				let saved = std::mem::replace(&mut self.current_scope, child);
-				for stmt in stmts {
-					self.execute(stmt);
-				}
-				self.current_scope = saved;
-			},
-			Stmt::If { condition, true_body, false_body, .. } => {
-				self.debug_print(format!("Executing if statement with condition: {:?}", condition));
-				self.if_stmt(condition, true_body, false_body);
-			},
-			Stmt::For { var_name, start, end, body, span, .. } => {
-				self.debug_print(format!("Executing for loop with variable: {}, start: {:?}, end: {:?}", var_name, start, end));
-				self.for_stmt(var_name, start, end, body, span);
-			},
-			Stmt::While { condition, body, .. } => {
-				self.debug_print(format!("Executing while loop with condition: {:?}", condition));
-				self.while_stmt(condition, body);
-			},
-			Stmt::Repeat { body, condition, .. } => {
-				self.debug_print(format!("Executing repeat loop with condition: {:?}", condition));
-				self.repeat_stmt(body, condition);
-			},
-			Stmt::Expr { value, .. } => {
-				self.debug_print(format!("Evaluating expression statement: {:?}", value));
-				self.evaluate(value);
-			},
-			Stmt::Print { value, .. } => {
-				self.debug_print(format!("Executing print statement with value: {:?}", value));
-				self.print(value);
-			},
-			Stmt::IndexAssign { target, index, value, .. } => {
-				self.debug_print(format!("Index assign to {:?} with value: {:?} and index: {:?}", &target, &value, &index));
-				self.index_set(target, index, value);
-			},
-			_ => unimplemented!(),
-		}
-		self.print_scope();
 	}
 
 	pub fn print_scope(&self) {
@@ -262,11 +222,5 @@ impl Interpreter {
 			crate::scope::print_scope(&self.current_scope, self.debug, 0);
 			self.debug_print("=============================");			
 		}
-	}
-}
-
-pub fn debug_print<T: ToString>(debug: bool, message: T) {
-	if debug {
-		println!("{}", message.to_string().purple());
 	}
 }

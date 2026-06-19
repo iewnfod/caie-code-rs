@@ -92,6 +92,23 @@ pub enum Stmt {
 		value: Expr,
 		span: Option<Span>,
 	},
+	FuncDecl {
+		name: String,
+		params: Vec<(String, Type)>,
+		return_type: Option<Type>,
+		body: Box<Stmt>,
+		span: Option<Span>,
+	},
+	Return {
+		value: Option<Expr>,
+		span: Option<Span>,
+	},
+	Continue {
+		span: Option<Span>,
+	},
+	Break {
+		span: Option<Span>,
+	},
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

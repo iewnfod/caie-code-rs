@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::{RuntimeValue, debug_print};
+use crate::{RuntimeValue, utils::debug_print};
 
 pub type ScopeRef = Rc<RefCell<Scope>>;
 

@@ -40,6 +40,12 @@ impl RuntimeValue {
                 }
             },
             RuntimeValue::Null => "NULL".to_string(),
+            RuntimeValue::Array(arr_obj) => {
+                arr_obj.borrow().to_string()
+            },
+            RuntimeValue::Func(func_obj) => {
+                format!("<function {}>", func_obj.borrow().name())
+            }
             _ => unimplemented!(),
         }
     }
@@ -52,10 +58,7 @@ pub fn default_type_value(ty: &Type) -> RuntimeValue {
         Type::Str => RuntimeValue::Str(String::new()),
         Type::Bool => RuntimeValue::Bool(false),
         Type::Null => RuntimeValue::Null,
-        Type::Array(ele_ty, start, end) => {
-            let arr = ArrayObj::new(*ele_ty.clone(), *start, *end);
-            RuntimeValue::Array(Rc::new(RefCell::new(arr)))
-        }
+        Type::Array(ele_ty, start, end) => ArrayObj::new_runtime(*ele_ty.clone(), *start, *end),
         _ => unimplemented!(),
     }
 }

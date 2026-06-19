@@ -38,11 +38,10 @@ cpc [file_path] [options]
 
 ## 功能 & 规划
 - [x] 基础类型 `INT`, `REAL`, `STRING`, `BOOLEAN`
-- [ ] 数组 与 多维数组
+- [x] 数组 与 多维数组
 - [x] `IF` 表达式
 - [x] `FOR`, `WHILE`, `UNTIL` 循环
-- [ ] `FUNCTION` 与 `PROCEDURE`
-	- [ ] `PROCEDURE` 没有返回值的函数
+- [x] `FUNCTION` 与 `PROCEDURE`
 - [ ] `INPUT` 与 `OUTPUT`
 - [ ] `CALL` 与 `RETURN`
 - [ ] `MATCH` 与 `CASE`
